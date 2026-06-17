@@ -6,6 +6,29 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.4.0] — 2026-06-17
+
+### Added
+
+**LangChain / LCEL Adapter (`runcore.sdk.adapters.langchain`)**
+- `RunCoreLangChainTracer` — owns a Capture; consistent API with LangGraph/CrewAI/AutoGen adapters
+  - `.wrap(runnable)` — transparent LCEL proxy that auto-injects the callback into every `invoke()` / `ainvoke()` call
+  - `.callback` property — exposes `_RunCoreHandler` to pass manually into `chain.invoke(config={"callbacks": [...]})`
+  - `.record_llm()`, `.record_tool()`, `.set_quality()`, `.set_success()` — manual recording API
+- `RunCoreLangChainCallback` — attaches to an active `runcore.capture()` context via thread-local context stack; events silently dropped when no context is active; safe for concurrent use with multiple nested captures
+- `trace_chain(agent_name, task, guards)` — convenience context manager mirroring `trace_crew()`
+- `_RunCoreHandler` — internal `BaseCallbackHandler` subclass shared by both classes; records: `on_llm_start/end/error`, `on_tool_start/end/error`, `on_chain_start/end/error`
+- Token extraction from both LangChain `LLMResult.llm_output.token_usage` and per-generation `generation_info.usage`
+- Cost calculation via `runcore.trace.cost.calculate_llm_cost()` with fallback to `$3/Mtok`
+- Graceful degradation: all classes instantiate and run without `langchain-core` installed; `ImportError` raised only when `.callback` is accessed
+- `runcore.sdk.adapters.__init__` now exports all four adapter classes + helpers
+
+**Tests**
+- `tests/unit/test_adapters_langchain.py` — 35 tests covering: `_RunCoreHandler` hooks, zero-token skip, `RunCoreLangChainTracer` context manager + wrap + async + guards, `RunCoreLangChainCallback` global context forwarding + silent drop + nested captures, `trace_chain` context manager
+- Fake `langchain_core` injected via `sys.modules` + `importlib.reload` so tests run without the package installed
+
+---
+
 ## [0.3.0] — 2026-06-17
 
 ### Added

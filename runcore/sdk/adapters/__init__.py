@@ -9,4 +9,16 @@ __all__ = [
     "RunCoreCrewCallback",
     "trace_crew",
     "RunCoreAutoGenTracer",
+    "RunCoreLangChainTracer",
+    "RunCoreLangChainCallback",
+    "trace_chain",
 ]
+
+try:
+    from runcore.sdk.adapters.langchain import (
+        RunCoreLangChainTracer,
+        RunCoreLangChainCallback,
+        trace_chain,
+    )
+except ImportError:
+    pass  # langchain-core not installed — LangChain adapter unavailable

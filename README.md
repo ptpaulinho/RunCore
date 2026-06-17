@@ -276,6 +276,39 @@ result = tracer.initiate_chat(user_proxy, assistant, message="Review this PR")
 trace = tracer.get_atir()
 ```
 
+### LangChain / LCEL
+
+Two modes — **Tracer** (owns the Capture, like the other adapters) or **Callback** (attaches to an existing `runcore.capture()` context):
+
+```python
+from runcore.sdk.adapters.langchain import RunCoreLangChainTracer, trace_chain
+
+# Option A — wrap any LCEL Runnable
+tracer = RunCoreLangChainTracer(agent_name="qa_chain", task="answer question")
+wrapped = tracer.wrap(chain)
+result  = wrapped.invoke({"question": "..."})
+trace   = tracer.get_atir()
+
+# Option B — context manager
+with trace_chain("support_chain", task="route ticket") as tracer:
+    result = chain.invoke({"input": "..."}, config={"callbacks": [tracer.callback]})
+
+trace = tracer.get_atir()
+print(f"CpST: ${trace.aggregates.cost_per_successful_task:.5f}")
+
+# Option C — attach to existing capture() context
+import runcore
+from runcore.sdk.adapters.langchain import RunCoreLangChainCallback
+
+with runcore.capture("my_chain", framework="langchain") as tracer:
+    chain = MyChain(callbacks=[RunCoreLangChainCallback()])
+    result = chain.run("some task")
+```
+
+Supported events: `on_llm_start/end/error`, `on_tool_start/end/error`, `on_chain_start/end/error`.
+
+Install LangChain support: `pip install runcore[langchain]`
+
 All adapters support runtime guards:
 
 ```python
@@ -311,7 +344,7 @@ runcore/
 ```bash
 pip install -e ".[dev]"
 PYTHONPATH=. pytest tests/ -q
-# 183 passed  (44 new adapter tests)
+# 238 passed  (79 new adapter tests: LangGraph + CrewAI + AutoGen + LangChain)
 ```
 
 ---
