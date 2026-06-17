@@ -64,6 +64,9 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+markers = [
+    "slow: marks tests that run real benchmark pipelines (deselect with -m 'not slow')",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]

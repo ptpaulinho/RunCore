@@ -1,0 +1,121 @@
+# Changelog
+
+All notable changes to RunCore are documented here.  
+Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
+Versioning follows [Semantic Versioning](https://semver.org/).
+
+---
+
+## [0.2.0] — 2026-06-17
+
+### Added
+
+**Runtime Guards (`runcore.sdk.guards`)**
+- `GuardConfig` — configure dedup, loop break, and context compression guards
+- `GuardEngine` — stateful guard engine attached to a `Capture` session
+- `DuplicateToolCallError` — raised when a duplicate tool call is blocked at runtime
+- `LoopBreakError` — raised when Loop Risk Score exceeds the configured threshold
+- `SavingsReport` — tracks blocked calls, tokens saved, and USD saved during a run
+- `Capture.new_turn()` — resets turn-scoped dedup state between LLM turns
+- `Capture.check_loop_risk(score)` — programmatic loop break check
+- `Capture.compress_messages(messages, tokens)` — auto-compress context via guard
+- `Capture.savings_report()` — returns the `SavingsReport` for the session
+- `runcore.capture(..., guards=GuardConfig())` — activate guards in 3-line integration
+
+**ATIR v1 additions**
+- `ATIRTrace.savings` field — embeds guard savings report in the trace
+- `ATIR_SPEC.md` — standalone spec document for external implementors
+
+**OptimizationAdvisor**
+- `POST /advice` server endpoint — analyze ATIR traces via HTTP
+- `GET /runs/{run_id}/advice` — retrieve advisor report for a completed benchmark run
+- `build_profile_from_atir()` — closes the loop: external traces → OptimizationProfile
+
+**Monitoring (`runcore.monitor`)**
+- `MonitorWatcher` — sliding window CpST and loop risk monitoring
+- `MonitorDaemon` — polling loop with SIGINT/SIGTERM handling
+- `MonitorConfig` — configurable thresholds for all alert types
+- `Alert`, `AlertSeverity`, `AlertType` — structured alert models
+- `ConsoleNotifier`, `WebhookNotifier`, `SlackNotifier` — multi-channel alerting
+- `runcore watch` CLI command — continuous monitoring daemon
+
+**Multi-provider benchmarking**
+- `ProviderBench` — run the same tasks across multiple providers, ranked by CpST
+- `ProviderConfig`, `ProviderResult` — fluent interface for provider setup
+- `runcore compare-providers` CLI command — ASCII leaderboard output
+
+**SDK**
+- `auto_instrument()` — zero-code monkey-patch for Anthropic and OpenAI SDKs
+- `@instrument` decorator — wrap any function with automatic capture
+- `instrument_object()` — wrap a method on an existing instance
+- `RunCoreLangChainCallback` — LangChain callback adapter
+- `capture_from_response()` — create a trace from a single API response object
+- Thread-local context stack for concurrent capture isolation
+
+**Server (FastAPI dashboard)**
+- SSE streaming — live benchmark progress via `GET /runs/{run_id}/stream`
+- `POST /compare` — head-to-head config comparison by CpST
+- Live progress bar in dashboard UI (updates via SSE)
+- OptimizationAdvisor panel shown after each benchmark run
+
+**CLI**
+- `runcore atir validate|show|convert` — ATIR file inspection
+- `runcore import` — import traces from Anthropic, OpenAI, or ATIR format
+- `runcore instrument <script.py>` — auto-instrument and run any Python script
+
+**Project**
+- `PATENT_CLAIMS.md` — 6 patent claims with prior art analysis
+- `README.md` — full documentation with integration examples and CLI reference
+- `LICENSE` — Apache 2.0
+- `pyproject.toml` — optional dependency groups: `[anthropic]`, `[openai]`, `[langchain]`, `[all]`, `[dev]`
+- GitHub Actions CI — test matrix across Python 3.10, 3.11, 3.12
+
+### Changed
+- `runcore.capture()` now accepts `guards=GuardConfig()` parameter
+- `ATIRTrace` gains optional `savings` field (backwards compatible)
+- `compute_aggregates()` duplicate detection uses full argument values (not just keys)
+- `pyproject.toml` version bumped to 0.2.0
+- `runcore/__init__.__version__` set to `"0.2.0"`
+
+### Fixed
+- `agent_trace_to_atir()` correctly passes `trace_id=trace.run_id` (was `trace.trace_id`)
+- `_prescribe_replacements` uses `pattern['pattern_type']` key (was `pattern['type']`)
+- `suggest_code_replacement()` generates real implementation patterns per type (lookup, validate, transform, compute, http, regex) instead of `raise NotImplementedError`
+
+---
+
+## [0.1.0] — 2026-05-01
+
+### Added
+
+**Core engine**
+- `AgentTrace`, `ToolCall`, `LLMCall` — internal trace models
+- `TraceCollector` — records LLM and tool call spans during agent execution
+- `BenchmarkRunner` — baseline + optimized benchmark pipeline with `ThreadPoolExecutor`
+- `BenchmarkMetrics`, `BenchmarkComparison` — metrics and comparison models
+- `ReportGenerator` — HTML, JSON, and text report generation
+
+**Optimization modules**
+- `ContextCompiler` — semantic deduplication and context compression (~28% avg token reduction)
+- `LoopDetector` — 4-signal loop risk detection (duplicate calls, errors, cycles, cross-turn)
+- `ReplacementDetector` — identify tool calls replaceable by deterministic Python
+- `ToolOptimizer`, `ToolRegistry`, `ToolRanker` — tool schema management and ranking
+- `OptimizationProfile` — derived from baseline traces; drives optimized runs
+
+**Agents**
+- `BaseAgent` — abstract agent with optimization integration
+- `SupportAgent`, `ResearchAgent`, `CodingAgent` — simulated agents for benchmarking
+- `RealSupportAgent` — agent using the live Anthropic SDK
+
+**Web dashboard**
+- FastAPI server with HTML dashboard, benchmark history, and report viewer
+- `runcore serve` CLI command
+
+**CLI**
+- `runcore init`, `runcore profile`, `runcore benchmark`, `runcore report`
+- `runcore compile`, `runcore run-real`, `runcore serve`
+
+---
+
+[0.2.0]: https://github.com/ptpaulinho/RunCore/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/ptpaulinho/RunCore/releases/tag/v0.1.0

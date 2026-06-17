@@ -78,6 +78,153 @@ def _repetition_score(tool_calls: list[ToolCall]) -> float:
     return min((max_count - 1) / 4.0, 1.0)
 
 
+def _infer_pattern_type(tool_name: str, arg_names: list[str]) -> str:
+    """Heuristically infer the pattern type from the tool name and its args."""
+    name = tool_name.lower()
+    args = {a.lower() for a in arg_names}
+
+    if any(k in name for k in ("get", "fetch", "lookup", "find", "retrieve", "load", "read")):
+        return "lookup"
+    if any(k in name for k in ("validate", "check", "verify", "is_", "assert", "test")):
+        return "validate"
+    if any(k in name for k in ("format", "render", "template", "encode", "decode", "convert", "transform", "parse")):
+        return "transform"
+    if any(k in name for k in ("calc", "compute", "sum", "count", "total", "average", "mean", "multiply", "divide")):
+        return "compute"
+    if any(k in name for k in ("send", "post", "put", "patch", "delete", "request", "call", "http", "api")):
+        return "http"
+    if args & {"pattern", "regex", "text", "string", "match", "search", "replace"}:
+        return "regex"
+    return "lookup"  # default fallback
+
+
+def _build_generic_replacement(tool_name: str, sample_calls: list[ToolCall], score: float) -> str:
+    """Generate a useful (non-stub) Python replacement inferred from the tool signature."""
+    sample_args = sample_calls[0].arguments if sample_calls else {}
+    arg_names   = list(sample_args.keys())
+    fn_name     = tool_name.replace("-", "_").replace(" ", "_")
+    ptype       = _infer_pattern_type(tool_name, arg_names)
+
+    # Build typed arg list from sample values
+    def _type_hint(v: object) -> str:
+        if isinstance(v, bool):   return "bool"
+        if isinstance(v, int):    return "int"
+        if isinstance(v, float):  return "float"
+        if isinstance(v, list):   return "list"
+        if isinstance(v, dict):   return "dict"
+        return "str"
+
+    typed_args = ", ".join(
+        f"{k}: {_type_hint(v)}" for k, v in sample_args.items()
+    ) if sample_args else ""
+
+    header = textwrap.dedent(f"""\
+        # -----------------------------------------------------------------------
+        # Suggested replacement for tool: {tool_name!r}
+        # Pattern type : {ptype}  (inferred from tool name + arguments)
+        # Replaceability score : {score:.2f}
+        # Called {len(sample_calls)} time(s) — sample args: {repr(sample_args)[:160]}
+        # -----------------------------------------------------------------------
+
+    """)
+
+    if ptype == "lookup":
+        primary_key = arg_names[0] if arg_names else "key"
+        body = textwrap.dedent(f"""\
+            from typing import Any
+
+            # In-memory store — replace with your real data source (DB, file, API cache)
+            _{fn_name.upper()}_STORE: dict[str, Any] = {{}}
+
+
+            def {fn_name}({typed_args}) -> dict[str, Any] | None:
+                \"\"\"Deterministic lookup replacing the '{tool_name}' tool call.\"\"\"
+                return _{fn_name.upper()}_STORE.get(str({primary_key}))
+        """)
+
+    elif ptype == "validate":
+        primary_val = arg_names[0] if arg_names else "value"
+        body = textwrap.dedent(f"""\
+            import re
+
+            # Adjust this pattern to match your validation rules
+            _VALID_PATTERN = re.compile(r"^.+$")
+
+
+            def {fn_name}({typed_args}) -> dict[str, object]:
+                \"\"\"Deterministic validation replacing the '{tool_name}' tool call.\"\"\"
+                value = str({primary_val}).strip()
+                if _VALID_PATTERN.match(value):
+                    return {{"valid": True, "value": value, "reason": ""}}
+                return {{"valid": False, "value": value, "reason": "Value did not pass validation."}}
+        """)
+
+    elif ptype == "transform":
+        primary_val = arg_names[0] if arg_names else "value"
+        body = textwrap.dedent(f"""\
+            def {fn_name}({typed_args}) -> str:
+                \"\"\"Deterministic transform replacing the '{tool_name}' tool call.\"\"\"
+                # Apply your transformation logic here
+                result = str({primary_val}).strip()
+                return result
+        """)
+
+    elif ptype == "compute":
+        args_call = ", ".join(arg_names) if arg_names else ""
+        body = textwrap.dedent(f"""\
+            def {fn_name}({typed_args}) -> float:
+                \"\"\"Deterministic computation replacing the '{tool_name}' tool call.\"\"\"
+                # Implement your formula here
+                values = [{args_call}]
+                return sum(float(v) for v in values if v is not None)
+        """)
+
+    elif ptype == "http":
+        url_arg = next((k for k in arg_names if "url" in k.lower()), None)
+        body = textwrap.dedent(f"""\
+            import urllib.request
+            import json
+
+            def {fn_name}({typed_args}) -> dict:
+                \"\"\"HTTP call replacing the '{tool_name}' tool call.\"\"\"
+                # Replace with your actual endpoint URL or inject via config
+                url = {repr(url_arg) if url_arg else '"https://api.example.com/endpoint"'}
+                with urllib.request.urlopen(url, timeout=10) as resp:
+                    return json.loads(resp.read().decode())
+        """)
+
+    elif ptype == "regex":
+        text_arg = next((k for k in arg_names if any(w in k.lower() for w in ("text", "string", "input", "value"))), arg_names[0] if arg_names else "text")
+        body = textwrap.dedent(f"""\
+            import re
+
+            # Adjust the pattern to match your extraction / matching rules
+            _PATTERN = re.compile(r"(?P<result>.+)")
+
+
+            def {fn_name}({typed_args}) -> dict[str, object]:
+                \"\"\"Regex operation replacing the '{tool_name}' tool call.\"\"\"
+                m = _PATTERN.search(str({text_arg}))
+                if m:
+                    return {{"match": True, "result": m.group("result"), "groups": m.groupdict()}}
+                return {{"match": False, "result": None, "groups": {{}}}}
+        """)
+
+    else:
+        body = textwrap.dedent(f"""\
+            from typing import Any
+
+            def {fn_name}({typed_args}) -> Any:
+                \"\"\"Deterministic replacement for the '{tool_name}' tool call.\"\"\"
+                # Implement your logic here based on the arguments above
+                raise NotImplementedError(
+                    f"Implement {fn_name!r} with your business logic."
+                )
+        """)
+
+    return header + body
+
+
 def _build_code_suggestion(tool_name: str, pattern: dict[str, Any], sample_calls: list[ToolCall]) -> str:
     """Wrap the pattern's code_template with call-site context."""
     sample_args = sample_calls[0].arguments if sample_calls else {}
@@ -272,29 +419,6 @@ class ReplacementDetector:
         if pattern:
             return _build_code_suggestion(tool_name, pattern, sample_calls)
 
-        # Generic stub for unknown but simple tools
-        sample_args  = sample_calls[0].arguments
-        arg_names    = list(sample_args.keys())
-        arg_list_str = ", ".join(f"{k}: object" for k in arg_names) if arg_names else ""
-        return_hint  = repr(sample_calls[0].result) if sample_calls[0].result is not None else "None"
-
-        return textwrap.dedent(f"""\
-            # -----------------------------------------------------------------------
-            # Generic replacement stub for tool: {tool_name!r}
-            # (No exact pattern match — adapt as needed)
-            # Replaceability score : {score:.2f}
-            # Sample arguments     : {repr(sample_args)[:200]}
-            # -----------------------------------------------------------------------
-
-            def {tool_name.replace("-", "_")}({arg_list_str}) -> object:
-                \"\"\"
-                Deterministic replacement for the '{tool_name}' tool call.
-
-                TODO: Implement the actual logic here.
-                The tool was called {len(sample_calls)} time(s) in the trace.
-                Sample return value: {return_hint!s:.200}
-                \"\"\"
-                raise NotImplementedError(
-                    "Replace this stub with the actual deterministic implementation."
-                )
-        """)
+        # Generic replacement for unknown but simple tools —
+        # infer implementation style from argument names and tool name.
+        return _build_generic_replacement(tool_name, sample_calls, score)
