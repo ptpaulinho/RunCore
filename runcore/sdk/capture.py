@@ -60,6 +60,10 @@ class Capture:
         if exc_type is not None:
             self._success = False
         _ctx.pop()
+        # Auto-push to Cloud if configured
+        from runcore.sdk.cloud import is_configured, push_trace
+        if is_configured():
+            push_trace(self.get_atir())
         return False  # don't suppress exceptions
 
     # ------------------------------------------------------------------

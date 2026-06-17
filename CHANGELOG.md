@@ -6,6 +6,29 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.7.0] — 2026-06-17
+
+### Added
+
+**Fase 14: SDK Auto-Push to Cloud**
+- `runcore/sdk/cloud.py` — cloud push configuration and fire-and-forget upload:
+  - `configure(api_key, endpoint, timeout_s, on_error)` — enable auto-push globally; validates `rc_` prefix
+  - `is_configured()` — True after configure() is called with a valid key
+  - `push_trace(trace, block=False)` — push a single ATIR trace; runs on daemon thread by default so callers are never blocked
+  - `get_config()` / `reset()` — introspection and test teardown helpers
+  - `push_stats()` — `{"pushed": N, "errors": N}` counters for observability
+  - Error modes: `"warn"` (default, prints warning), `"raise"`, `"silent"`
+  - `RUNCORE_API_KEY` + `RUNCORE_CLOUD_ENDPOINT` env vars as alternative to `configure()`
+  - Uses stdlib `urllib` only — no extra dependencies
+- `runcore.configure()` exported at top level — one-line setup in any codebase
+- `Capture.__exit__` now calls `push_trace(self.get_atir())` automatically when configured
+- `runcore/__init__.py` exports: `configure`, `get_config`, `is_configured`, `push_trace`, `reset_cloud`
+
+**Tests**
+- `tests/unit/test_cloud_push.py` — 25 tests: configure() validation, push_trace() mock paths, stats counters, error modes (warn/raise/silent), Capture auto-push integration, _push_sync HTTP payload format (local HTTPServer), 429 error handling
+
+---
+
 ## [0.6.0] — 2026-06-17
 
 ### Added

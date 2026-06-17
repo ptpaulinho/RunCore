@@ -59,6 +59,7 @@ runcore/reports/generator.py
 runcore/reports/templates/report.html.j2
 runcore/sdk/__init__.py
 runcore/sdk/capture.py
+runcore/sdk/cloud.py
 runcore/sdk/context.py
 runcore/sdk/guards.py
 runcore/sdk/instrument.py

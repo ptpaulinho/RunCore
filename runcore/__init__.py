@@ -26,6 +26,7 @@ from runcore.core.models import (
 from runcore.sdk.capture import Capture
 from runcore.sdk.instrument import instrument, auto_instrument, uninstrument, instrument_object
 from runcore.sdk.guards import GuardConfig, SavingsReport, DuplicateToolCallError, LoopBreakError
+from runcore.sdk.cloud import configure, get_config, is_configured, push_trace, reset as reset_cloud
 from runcore.atir.spec import ATIRTrace, ATIRAggregates, LLMSpan, ToolSpan, ATIR_VERSION
 import runcore.atir as atir
 import runcore.sdk as sdk
@@ -48,13 +49,15 @@ def capture(
     return Capture(agent_name=agent_name, task=task, framework=framework, guards=guards)
 
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 
 __all__ = [
     "__version__",
     # SDK
     "capture", "Capture", "instrument", "auto_instrument", "uninstrument", "instrument_object",
     "GuardConfig", "SavingsReport", "DuplicateToolCallError", "LoopBreakError",
+    # Cloud
+    "configure", "get_config", "is_configured", "push_trace", "reset_cloud",
     # ATIR
     "ATIRTrace", "ATIRAggregates", "LLMSpan", "ToolSpan", "ATIR_VERSION",
     "atir", "sdk",
