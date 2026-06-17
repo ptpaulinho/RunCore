@@ -28,6 +28,8 @@ app = FastAPI(title="RunCore Dashboard", version="0.4.0")
 # Cloud storage — initialise on startup
 # ---------------------------------------------------------------------------
 from runcore.server import storage as _store
+from runcore.server import billing as _billing
+from runcore.server import stripe_billing as _stripe
 
 @app.on_event("startup")
 def _startup():
@@ -1183,6 +1185,15 @@ async def ingest_traces(request: Request) -> dict:
     if not raw_traces:
         raise HTTPException(status_code=400, detail="No traces provided")
 
+    # --- Tier limit check ---
+    usage = _store.get_monthly_usage(tenant["id"])
+    allowed, reason = _billing.check_ingest_allowed(tenant["plan"], usage, len(raw_traces))
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail={"error": "trace_limit_exceeded", "message": reason, "plan": tenant["plan"]},
+        )
+
     ids = []
     errors = []
     for i, t in enumerate(raw_traces):
@@ -1192,11 +1203,17 @@ async def ingest_traces(request: Request) -> dict:
         except Exception as exc:
             errors.append({"index": i, "error": str(exc)})
 
+    limits = _billing.get_limits(tenant["plan"])
     return {
         "ingested": len(ids),
         "trace_ids": ids,
         "errors": errors,
         "tenant_id": tenant["id"],
+        "usage": {
+            "traces_this_month": usage + len(ids),
+            "limit": limits.traces_per_month,
+            "plan": tenant["plan"],
+        },
     }
 
 
@@ -1333,4 +1350,151 @@ def tenant_stats_api(request: Request) -> dict:
     """Return KPI stats for the authenticated tenant as JSON."""
     tenant = _require_tenant(request)
     stats  = _store.tenant_stats(tenant["id"])
-    return {"tenant_id": tenant["id"], "tenant_name": tenant["name"], **stats}
+    usage  = _store.get_monthly_usage(tenant["id"])
+    limits = _billing.get_limits(tenant["plan"])
+    return {
+        "tenant_id": tenant["id"],
+        "tenant_name": tenant["name"],
+        **stats,
+        "plan": tenant["plan"],
+        "traces_this_month": usage,
+        "traces_limit": limits.traces_per_month,
+    }
+
+
+# ===========================================================================
+# Billing endpoints
+# ===========================================================================
+
+class CheckoutRequest(BaseModel):
+    plan: str
+    email: str = ""
+
+
+@app.post("/cloud/billing/checkout")
+async def billing_checkout(req: CheckoutRequest, request: Request) -> dict:
+    """Create a Stripe Checkout Session for upgrading the authenticated tenant's plan.
+
+    Returns ``{"url": "<checkout_url>", "session_id": "...", "dev_mode": bool}``
+    """
+    tenant = _require_tenant(request)
+    if req.plan not in ("team", "enterprise"):
+        raise HTTPException(status_code=400, detail="Invalid plan. Choose 'team' or 'enterprise'.")
+    result = _stripe.create_checkout_session(
+        tenant_id=tenant["id"],
+        plan=req.plan,
+        email=req.email,
+    )
+    return result
+
+
+@app.post("/cloud/billing/portal")
+async def billing_portal(request: Request) -> dict:
+    """Return a Stripe Customer Portal URL for managing subscription."""
+    tenant = _require_tenant(request)
+    full = _store.get_tenant_by_id(tenant["id"])
+    customer_id = (full or {}).get("stripe_customer_id")
+    if not customer_id:
+        raise HTTPException(
+            status_code=400,
+            detail="No Stripe customer found. Subscribe first via /cloud/billing/checkout.",
+        )
+    url = _stripe.create_portal_session(customer_id)
+    return {"url": url}
+
+
+@app.post("/cloud/billing/webhook")
+async def billing_webhook(request: Request) -> dict:
+    """Stripe webhook receiver. Register this URL in the Stripe Dashboard."""
+    payload = await request.body()
+    sig = request.headers.get("stripe-signature", "")
+    event = _stripe.verify_webhook(payload, sig)
+    if event is None:
+        raise HTTPException(status_code=400, detail="Webhook signature verification failed")
+    action = _stripe.handle_webhook_event(event, _store)
+    return {"received": True, "action": action}
+
+
+@app.get("/cloud/billing/plans", response_class=HTMLResponse)
+def billing_plans(request: Request) -> str:
+    """Pricing page with plan comparison table."""
+    plans = _billing.TIER_COMPARISON
+
+    def _plan_card(p: dict) -> str:
+        is_team = p["plan"] == "team"
+        highlight = "border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);" if is_team else ""
+        badge = '<div class="popular-badge">Most Popular</div>' if is_team else ""
+        feats = "".join(f'<li>✓ {f}</li>' for f in p["features"])
+        cta = (
+            f'<a href="/cloud/billing/checkout-page?plan={p["plan"]}" class="btn-plan">Upgrade to {p["plan"].title()}</a>'
+            if p["plan"] != "free"
+            else '<span class="btn-plan-free">Current Free Plan</span>'
+        )
+        return f"""
+        <div class="plan-card" style="{highlight}">
+          {badge}
+          <div class="plan-name">{p["plan"].title()}</div>
+          <div class="plan-price">{p["price"]}</div>
+          <div class="plan-traces">{p["traces"]} traces</div>
+          <ul class="plan-features">{feats}</ul>
+          <div class="plan-retention">Data retained: {p["retention"]}</div>
+          <div class="plan-seats">Seats: {p["seats"]}</div>
+          {cta}
+        </div>"""
+
+    cards = "".join(_plan_card(p) for p in plans)
+
+    return f"""<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RunCore Cloud — Pricing</title>
+<style>
+:root{{--bg:#0c0e14;--surface:#131720;--border:#252d3d;--text:#e2e8f0;--muted:#64748b;
+      --accent:#7c3aed;--accent-light:#a78bfa;--green:#4ade80;--blue:#60a5fa}}
+*{{box-sizing:border-box;margin:0;padding:0}}
+body{{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}}
+.nav{{background:var(--surface);border-bottom:1px solid var(--border);padding:0 32px;display:flex;align-items:center;height:56px}}
+.logo{{font-size:1.2rem;font-weight:800;color:var(--accent)}}
+.logo span{{color:var(--accent-light)}}
+.page{{padding:48px 32px;max-width:1100px;margin:0 auto;text-align:center}}
+h1{{font-size:2rem;font-weight:800;margin-bottom:12px}}
+.subtitle{{color:var(--muted);margin-bottom:48px;font-size:1rem}}
+.plans-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;text-align:left}}
+.plan-card{{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;position:relative}}
+.popular-badge{{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;font-size:.72rem;font-weight:700;padding:3px 12px;border-radius:20px;white-space:nowrap}}
+.plan-name{{font-size:1.1rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--accent-light);margin-bottom:8px}}
+.plan-price{{font-size:2rem;font-weight:800;margin-bottom:4px}}
+.plan-traces{{font-size:.82rem;color:var(--muted);margin-bottom:20px}}
+.plan-features{{list-style:none;margin-bottom:20px}}
+.plan-features li{{font-size:.85rem;color:#94a3b8;padding:4px 0;border-bottom:1px solid rgba(37,45,61,.5)}}
+.plan-features li:last-child{{border:none}}
+.plan-retention,.plan-seats{{font-size:.78rem;color:var(--muted);margin-bottom:4px}}
+.btn-plan{{display:block;margin-top:20px;padding:10px;background:var(--accent);color:#fff;border-radius:8px;text-align:center;text-decoration:none;font-weight:600;font-size:.9rem}}
+.btn-plan:hover{{background:#6d28d9}}
+.btn-plan-free{{display:block;margin-top:20px;padding:10px;background:var(--surface);color:var(--muted);border:1px solid var(--border);border-radius:8px;text-align:center;font-size:.9rem}}
+a{{color:var(--accent-light);text-decoration:none}}
+</style></head><body>
+<nav class="nav"><div class="logo">Run<span>Core</span></div></nav>
+<div class="page">
+  <h1>Simple, transparent pricing</h1>
+  <p class="subtitle">Start free. Upgrade as you grow. No hidden fees.</p>
+  <div class="plans-grid">{cards}</div>
+</div></body></html>"""
+
+
+@app.get("/cloud/billing/dev-checkout", response_class=HTMLResponse)
+def dev_checkout(plan: str = "team", tenant: str = "") -> str:
+    """Dev-mode checkout page (shown when no Stripe keys are configured)."""
+    return f"""<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Dev Checkout</title>
+<style>body{{font-family:sans-serif;background:#0c0e14;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh}}
+.box{{background:#131720;border:1px solid #252d3d;border-radius:12px;padding:40px;max-width:440px;text-align:center}}
+h2{{color:#a78bfa;margin-bottom:12px}}p{{color:#64748b;margin-bottom:20px;font-size:.9rem}}
+.badge{{background:rgba(251,191,36,.1);color:#fcd34d;border:1px solid rgba(251,191,36,.2);padding:4px 12px;border-radius:20px;font-size:.8rem}}
+a{{color:#a78bfa}}</style></head>
+<body><div class="box">
+  <h2>Dev Mode Checkout</h2>
+  <p>Stripe keys are not configured. In production, add <code>STRIPE_SECRET_KEY</code> to upgrade to real payments.</p>
+  <div class="badge">Plan: {plan.title()} · Tenant: {tenant[:8] or "—"}</div>
+  <p style="margin-top:20px"><a href="/cloud/billing/plans">← Back to plans</a></p>
+</div></body></html>"""

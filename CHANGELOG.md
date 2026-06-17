@@ -6,6 +6,50 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.6.0] — 2026-06-17
+
+### Added
+
+**Fase 12: Render.com Deploy**
+- `render.yaml` — one-click deploy config for Render.com: web service + 1 GB persistent disk at `/data/cloud.db`
+- `storage._DB_PATH` now reads `RUNCORE_DB_PATH` env var so the same code runs locally (`.runcore/cloud.db`) and in production (`/data/cloud.db`)
+
+**Fase 13: Postgres Support + Billing Tiers**
+- `runcore/server/billing.py` — tier model:
+  - `TierLimits` dataclass with `traces_per_month`, `retention_days`, `seats`, `price_usd_month`, `features`
+  - `TIERS` dict: Free (500 traces/mo, $0), Team (10k/mo, $49), Enterprise (unlimited, $299)
+  - `get_limits(plan)` — lookup with free fallback
+  - `check_ingest_allowed(plan, usage, batch)` — returns `(allowed, reason)` tuple
+  - `has_feature(plan, feature)` — feature-flag check
+  - `TIER_COMPARISON` — structured list for pricing page rendering
+- `runcore/server/stripe_billing.py` — Stripe integration:
+  - `create_checkout_session(tenant_id, plan, email)` — creates Stripe Checkout or returns dev placeholder
+  - `create_portal_session(stripe_customer_id)` — customer billing portal URL
+  - `verify_webhook(payload, sig_header)` — signature verification (dev mode: skip)
+  - `handle_webhook_event(event, storage)` — handles `checkout.session.completed`, `customer.subscription.deleted/updated`, `invoice.payment_failed`
+  - Fully operational in dev mode without Stripe keys; activates automatically when `STRIPE_SECRET_KEY` is set
+- `runcore/server/storage.py` — Postgres + billing:
+  - `DATABASE_URL` env var switches backend from SQLite → Postgres (`psycopg2`)
+  - Both backends share identical DDL and all public functions
+  - New columns: `stripe_customer_id`, `stripe_subscription_id`, `traces_this_month`, `month_key`
+  - `upgrade_tenant_plan(tenant_id, plan, stripe_customer_id, stripe_subscription_id)`
+  - `downgrade_tenant_by_customer(stripe_customer_id, plan)`
+  - `get_monthly_usage(tenant_id)` — usage counter with automatic month rollover
+  - `ingest_trace()` now increments `traces_this_month` counter and resets on new month
+- Cloud API updates:
+  - `POST /cloud/ingest` — tier limit enforced before insert; returns `usage` field with `traces_this_month`, `limit`, `plan`; returns 429 with `trace_limit_exceeded` on breach
+  - `GET /cloud/stats` — now includes `plan`, `traces_this_month`, `traces_limit`
+  - `POST /cloud/billing/checkout` — create Stripe Checkout Session (auth required)
+  - `POST /cloud/billing/portal` — Stripe Customer Portal redirect (requires Stripe customer)
+  - `POST /cloud/billing/webhook` — Stripe webhook receiver
+  - `GET /cloud/billing/plans` — HTML pricing page with plan comparison table
+  - `GET /cloud/billing/dev-checkout` — dev-mode placeholder when Stripe is not configured
+
+**Tests**
+- `tests/unit/test_billing.py` — 36 tests covering: tier limits logic, storage billing fields, ingest enforcement (429 on breach), stats billing fields, all billing HTTP endpoints, Stripe webhook event handling
+
+---
+
 ## [0.5.0] — 2026-06-17
 
 ### Added

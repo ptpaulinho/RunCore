@@ -1,0 +1,462 @@
+[
+  {
+    "trace_id": "eb963a20-0889-4811-bbcd-fca5519ff206",
+    "agent_name": "support",
+    "task": "Process refund for order INV-1001",
+    "success": true,
+    "aggregates": {
+      "total_cost_usd": 0.0073950000000000005,
+      "total_tokens": 1641,
+      "llm_calls": 3,
+      "tool_calls": 5,
+      "duplicate_tool_calls": 1,
+      "cost_per_successful_task": 0.001479
+    },
+    "spans": [
+      {
+        "type": "llm_call",
+        "span_id": "d14fea93-eb76-471e-94fe-0e0a8203228f",
+        "model": "claude-3-5-sonnet-20241022",
+        "provider": "anthropic",
+        "input_tokens": 86,
+        "output_tokens": 55,
+        "cost_usd": 0.0010829999999999998
+      },
+      {
+        "type": "tool_call",
+        "span_id": "d2cc91bd-7b6e-4af6-a3d5-1824252d0ad3",
+        "name": "search_docs",
+        "success": true,
+        "arguments": {
+          "query": "refund policy eligibility requirements"
+        },
+        "result_summary": "{\"results\": [\"Refund Policy: Items purchased within 30 days are eligible for a full refund.\", \"Processing time: 3-5 business days after approval.\", \"Exceptions: Digital goods and gift cards are non-re"
+      },
+      {
+        "type": "tool_call",
+        "span_id": "7dc75a80-7358-4cd4-84ce-b1f659d5057a",
+        "name": "get_customer",
+        "success": true,
+        "arguments": {
+          "email": "customer@example.com"
+        },
+        "result_summary": "{\"id\": \"cust_42\", \"name\": \"John Doe\", \"email\": \"customer@example.com\", \"tier\": \"standard\", \"since\": \"2022-01-15\", \"orders\": 14, \"lifetime_value\": 1240.5, \"address\": \"123 Main St, Springfield, IL 62701"
+      },
+      {
+        "type": "tool_call",
+        "span_id": "9e678b32-d8a2-422f-bd3b-cb95ba0e6009",
+        "name": "get_invoice",
+        "success": true,
+        "arguments": {
+          "invoice_id": "INV-1001"
+        },
+        "result_summary": "{\"id\": \"INV-1001\", \"amount\": 99.99, \"status\": \"paid\", \"date\": \"2024-05-10\", \"items\": [{\"sku\": \"PROD-7\", \"name\": \"Premium Widget\", \"qty\": 1, \"unit_price\": 99.99, \"tax\": 0.0}], \"payment_method\": \"credit"
+      },
+      {
+        "type": "llm_call",
+        "span_id": "34155a8e-15d5-4ae2-8136-ee46636b9d11",
+        "model": "claude-3-5-sonnet-20241022",
+        "provider": "anthropic",
+        "input_tokens": 570,
+        "output_tokens": 100,
+        "cost_usd": 0.00321
+      },
+      {
+        "type": "tool_call",
+        "span_id": "c8951c98-62aa-4f59-8f83-070bbf9c2ce4",
+        "name": "search_docs",
+        "success": true,
+        "arguments": {
+          "query": "refund policy eligibility requirements"
+        },
+        "result_summary": "{\"results\": [\"Refund Policy: Items purchased within 30 days are eligible for a full refund.\", \"Processing time: 3-5 business days after approval.\"]}"
+      },
+      {
+        "type": "tool_call",
+        "span_id": "a2f47e96-cbf5-4d44-914e-d54e77ef4278",
+        "name": "refund_order",
+        "success": true,
+        "arguments": {
+          "order_id": "INV-1001",
+          "amount": 99.99
+        },
+        "result_summary": "{\"status\": \"refunded\", \"ref\": \"REF-9901\", \"eta_days\": 3}"
+      },
+      {
+        "type": "llm_call",
+        "span_id": "07085cc3-3db6-4d56-9534-9cccf5ea9f01",
+        "model": "claude-3-5-sonnet-20241022",
+        "provider": "anthropic",
+        "input_tokens": 779,
+        "output_tokens": 51,
+        "cost_usd": 0.003102
+      }
+    ]
+  },
+  {
+    "trace_id": "7756a1ee-14fd-4e16-afb7-b2002ae1d4e3",
+    "agent_name": "support",
+    "task": "Check invoice status for customer@example.com",
+    "success": true,
+    "aggregates": {
+      "total_cost_usd": 0.007937999999999999,
+      "total_tokens": 1822,
+      "llm_calls": 3,
+      "tool_calls": 6,
+      "duplicate_tool_calls": 2,
+      "cost_per_successful_task": 0.001323
+    },
+    "spans": [
+      {
+        "type": "llm_call",
+        "span_id": "67248b6d-8220-40f1-a739-b68ff58fbb02",
+        "model": "claude-3-5-sonnet-20241022",
+        "provider": "anthropic",
+        "input_tokens": 85,
+        "output_tokens": 55,
+        "cost_usd": 0.0010799999999999998
+      },
+      {
+        "type": "tool_call",
+        "span_id": "e5cb74ef-ebea-4ac5-8202-6bd61c641ebd",
+        "name": "search_docs",
+        "success": true,
+        "arguments": {
+          "query": "refund policy eligibility requirements"
+        },
+        "result_summary": "{\"results\": [\"Refund Policy: Items purchased within 30 days are eligible for a full refund.\", \"Processing time: 3-5 business days after approval.\", \"Exceptions: Digital goods and gift cards are non-re"
+      },
+      {
+        "type": "tool_call",
+        "span_id": "79b7193e-3fde-465a-8931-654559493c7c",
+        "name": "get_customer",
+        "success": true,
+        "arguments": {
+          "email": "customer@example.com"
+        },
+        "result_summary": "{\"id\": \"cust_42\", \"name\": \"John Doe\", \"email\": \"customer@example.com\", \"tier\": \"standard\", \"since\": \"2022-01-15\", \"orders\": 14, \"lifetime_value\": 1240.5, \"address\": \"123 Main St, Springfield, IL 62701"
+      },
+      {
+        "type": "tool_call",
+        "span_id": "24c3c3c8-bd3e-498a-b1ec-1278e4c24ce2",
+        "name": "get_invoice",
+        "success": true,
+        "arguments": {
+          "invoice_id": "INV-1001"
+        },
+        "result_summary": "{\"id\": \"INV-1001\", \"amount\": 99.99, \"status\": \"paid\", \"date\": \"2024-05-10\", \"items\": [{\"sku\": \"PROD-7\", \"name\": \"Premium Widget\", \"qty\": 1, \"unit_price\": 99.99, \"tax\": 0.0}], \"payment_method\": \"credit"
+      },
+      {
+        "type": "llm_call",
+        "span_id": "6200be5d-8a32-4b4d-a399-424e02748b21",
+        "model": "claude-3-5-sonnet-20241022",
+        "provider": "anthropic",
+        "input_tokens": 569,
+        "output_tokens": 100,
+        "cost_usd": 0.0032069999999999998
+      },
+      {
+        "type": "tool_call",
+        "span_id": "83c8f334-474d-4435-bdc5-23c18ffcee08",
+        "name": "get_invoice",
+        "success": true,
+        "arguments": {
+          "invoice_id": "INV-1001"
+        },
+        "result_summary": "{\"id\": \"INV-1001\", \"amount\": 99.99, \"status\": \"paid\", \"date\": \"2024-05-10\", \"items\": [{\"sku\": \"PROD-7\", \"name\": \"Premium Widget\", \"qty\": 1, \"unit_price\": 99.99, \"tax\": 0.0}], \"payment_method\": \"credit"
+      },
+      {
+        "type": "tool_call",
+        "span_id": "1b01cca7-d86f-4b89-a0a4-06c27843b245",
+        "name": "search_docs",
+        "success": true,
+        "arguments": {
+          "query": "refund policy eligibility requirements"
+        },
+        "result_summary": "{\"results\": [\"Refund Policy: Items purchased within 30 days are eligible for a full refund.\", \"Processing time: 3-5 business days after approval.\"]}"
+      },
+      {
+        "type": "tool_call",
+        "span_id": "09834de6-495c-4371-9c0d-2d2f6ba7b237",
+        "name": "refund_order",
+        "success": true,
+        "arguments": {
+          "order_id": "INV-1001",
+          "amount": 99.99
+        },
+        "result_summary": "{\"status\": \"refunded\", \"ref\": \"REF-9901\", \"eta_days\": 3}"
+      },
+      {
+        "type": "llm_call",
+        "span_id": "fb9ae1f8-f012-477f-9948-84ed2f2744e3",
+        "model": "claude-3-5-sonnet-20241022",
+        "provider": "anthropic",
+        "input_tokens": 962,
+        "output_tokens": 51,
+        "cost_usd": 0.003651
+      }
+    ]
+  },
+  {
+    "trace_id": "9311bdd7-f42e-423d-bd88-62d785a6a50a",
+    "agent_name": "support",
+    "task": "Refund $99.99 for order INV-1001 \u2014 duplicate billing",
+    "success": true,
+    "aggregates": {
+      "total_cost_usd": 0.0073620000000000005,
+      "total_tokens": 1630,
+      "llm_calls": 3,
+      "tool_calls": 4,
+      "duplicate_tool_calls": 1,
+      "cost_per_successful_task": 0.001841
+    },
+    "spans": [
+      {
+        "type": "llm_call",
+        "span_id": "65a21060-000a-4feb-b797-cd26081a6500",
+        "model": "claude-3-5-sonnet-20241022",
+        "provider": "anthropic",
+        "input_tokens": 93,
+        "output_tokens": 55,
+        "cost_usd": 0.001104
+      },
+      {
+        "type": "tool_call",
+        "span_id": "bf203f99-b7bc-4ac2-a459-0b5ab622c031",
+        "name": "get_customer",
+        "success": true,
+        "arguments": {
+          "email": "customer@example.com"
+        },
+        "result_summary": "{\"id\": \"cust_42\", \"name\": \"John Doe\", \"email\": \"customer@example.com\", \"tier\": \"standard\", \"since\": \"2022-01-15\", \"orders\": 14, \"lifetime_value\": 1240.5, \"address\": \"123 Main St, Springfield, IL 62701"
+      },
+      {
+        "type": "tool_call",
+        "span_id": "8a11380c-f89c-4224-a1b7-532bb5ce6302",
+        "name": "get_invoice",
+        "success": true,
+        "arguments": {
+          "invoice_id": "INV-1001"
+        },
+        "result_summary": "{\"id\": \"INV-1001\", \"amount\": 99.99, \"status\": \"paid\", \"date\": \"2024-05-10\", \"items\": [{\"sku\": \"PROD-7\", \"name\": \"Premium Widget\", \"qty\": 1, \"unit_price\": 99.99, \"tax\": 0.0}], \"payment_method\": \"credit"
+      },
+      {
+        "type": "llm_call",
+        "span_id": "e424f284-64e2-4206-815a-b098311b63b6",
+        "model": "claude-3-5-sonnet-20241022",
+        "provider": "anthropic",
+        "input_tokens": 496,
+        "output_tokens": 100,
+        "cost_usd": 0.0029879999999999998
+      },
+      {
+        "type": "tool_call",
+        "span_id": "7d5f9b4b-5066-4567-b79e-7c6367958834",
+        "name": "get_invoice",
+        "success": true,
+        "arguments": {
+          "invoice_id": "INV-1001"
+        },
+        "result_summary": "{\"id\": \"INV-1001\", \"amount\": 99.99, \"status\": \"paid\", \"date\": \"2024-05-10\", \"items\": [{\"sku\": \"PROD-7\", \"name\": \"Premium Widget\", \"qty\": 1, \"unit_price\": 99.99, \"tax\": 0.0}], \"payment_method\": \"credit"
+      },
+      {
+        "type": "tool_call",
+        "span_id": "2e62e27d-6da5-4adc-9c9d-99816702341c",
+        "name": "refund_order",
+        "success": true,
+        "arguments": {
+          "order_id": "INV-1001",
+          "amount": 99.99
+        },
+        "result_summary": "{\"status\": \"refunded\", \"ref\": \"REF-9901\", \"eta_days\": 3}"
+      },
+      {
+        "type": "llm_call",
+        "span_id": "af8a5fb7-86cc-40df-9e3e-0e5eda65ad44",
+        "model": "claude-3-5-sonnet-20241022",
+        "provider": "anthropic",
+        "input_tokens": 835,
+        "output_tokens": 51,
+        "cost_usd": 0.00327
+      }
+    ]
+  },
+  {
+    "trace_id": "76167591-dad4-4aa0-8ee8-a3fae1f827e6",
+    "agent_name": "support",
+    "task": "Look up customer account and issue refund",
+    "success": true,
+    "aggregates": {
+      "total_cost_usd": 0.00729,
+      "total_tokens": 1606,
+      "llm_calls": 3,
+      "tool_calls": 4,
+      "duplicate_tool_calls": 1,
+      "cost_per_successful_task": 0.001822
+    },
+    "spans": [
+      {
+        "type": "llm_call",
+        "span_id": "c8179d7f-9d8f-4c98-86f2-62e3fe7444fc",
+        "model": "claude-3-5-sonnet-20241022",
+        "provider": "anthropic",
+        "input_tokens": 85,
+        "output_tokens": 55,
+        "cost_usd": 0.0010799999999999998
+      },
+      {
+        "type": "tool_call",
+        "span_id": "0fd99d25-094d-4d97-9a74-c6ca3e6b5ec8",
+        "name": "get_customer",
+        "success": true,
+        "arguments": {
+          "email": "customer@example.com"
+        },
+        "result_summary": "{\"id\": \"cust_42\", \"name\": \"John Doe\", \"email\": \"customer@example.com\", \"tier\": \"standard\", \"since\": \"2022-01-15\", \"orders\": 14, \"lifetime_value\": 1240.5, \"address\": \"123 Main St, Springfield, IL 62701"
+      },
+      {
+        "type": "tool_call",
+        "span_id": "35aceee9-6739-4527-a8c0-65eef8fba06b",
+        "name": "get_invoice",
+        "success": true,
+        "arguments": {
+          "invoice_id": "INV-1001"
+        },
+        "result_summary": "{\"id\": \"INV-1001\", \"amount\": 99.99, \"status\": \"paid\", \"date\": \"2024-05-10\", \"items\": [{\"sku\": \"PROD-7\", \"name\": \"Premium Widget\", \"qty\": 1, \"unit_price\": 99.99, \"tax\": 0.0}], \"payment_method\": \"credit"
+      },
+      {
+        "type": "llm_call",
+        "span_id": "b3716569-fb1a-4cde-8d57-5efb7cbaa139",
+        "model": "claude-3-5-sonnet-20241022",
+        "provider": "anthropic",
+        "input_tokens": 488,
+        "output_tokens": 100,
+        "cost_usd": 0.0029639999999999996
+      },
+      {
+        "type": "tool_call",
+        "span_id": "e6bd6f11-8fce-47cd-8124-3f7cae5043e7",
+        "name": "get_invoice",
+        "success": true,
+        "arguments": {
+          "invoice_id": "INV-1001"
+        },
+        "result_summary": "{\"id\": \"INV-1001\", \"amount\": 99.99, \"status\": \"paid\", \"date\": \"2024-05-10\", \"items\": [{\"sku\": \"PROD-7\", \"name\": \"Premium Widget\", \"qty\": 1, \"unit_price\": 99.99, \"tax\": 0.0}], \"payment_method\": \"credit"
+      },
+      {
+        "type": "tool_call",
+        "span_id": "c95d212c-31fe-415e-9018-c3834f835744",
+        "name": "refund_order",
+        "success": true,
+        "arguments": {
+          "order_id": "INV-1001",
+          "amount": 99.99
+        },
+        "result_summary": "{\"status\": \"refunded\", \"ref\": \"REF-9901\", \"eta_days\": 3}"
+      },
+      {
+        "type": "llm_call",
+        "span_id": "6fc41b9a-f547-4709-aa3e-b865098886d8",
+        "model": "claude-3-5-sonnet-20241022",
+        "provider": "anthropic",
+        "input_tokens": 827,
+        "output_tokens": 51,
+        "cost_usd": 0.003246
+      }
+    ]
+  },
+  {
+    "trace_id": "da7044f8-e7f4-4370-a5a2-f17046a3d530",
+    "agent_name": "support",
+    "task": "Customer says they never received order, process refund",
+    "success": true,
+    "aggregates": {
+      "total_cost_usd": 0.007794000000000001,
+      "total_tokens": 1774,
+      "llm_calls": 3,
+      "tool_calls": 5,
+      "duplicate_tool_calls": 1,
+      "cost_per_successful_task": 0.001559
+    },
+    "spans": [
+      {
+        "type": "llm_call",
+        "span_id": "f05dba4b-08f9-49c7-835c-e45ff61d111f",
+        "model": "claude-3-5-sonnet-20241022",
+        "provider": "anthropic",
+        "input_tokens": 87,
+        "output_tokens": 55,
+        "cost_usd": 0.001086
+      },
+      {
+        "type": "tool_call",
+        "span_id": "f82bd1af-8d34-467c-84d4-8b33ce9d0329",
+        "name": "search_docs",
+        "success": true,
+        "arguments": {
+          "query": "refund policy eligibility requirements"
+        },
+        "result_summary": "{\"results\": [\"Refund Policy: Items purchased within 30 days are eligible for a full refund.\", \"Processing time: 3-5 business days after approval.\", \"Exceptions: Digital goods and gift cards are non-re"
+      },
+      {
+        "type": "tool_call",
+        "span_id": "d66ec08d-d7f9-49de-8304-4e3625877c4c",
+        "name": "get_customer",
+        "success": true,
+        "arguments": {
+          "email": "customer@example.com"
+        },
+        "result_summary": "{\"id\": \"cust_42\", \"name\": \"John Doe\", \"email\": \"customer@example.com\", \"tier\": \"standard\", \"since\": \"2022-01-15\", \"orders\": 14, \"lifetime_value\": 1240.5, \"address\": \"123 Main St, Springfield, IL 62701"
+      },
+      {
+        "type": "tool_call",
+        "span_id": "43977109-261e-45c4-a864-1456b6508c4f",
+        "name": "get_invoice",
+        "success": true,
+        "arguments": {
+          "invoice_id": "INV-1001"
+        },
+        "result_summary": "{\"id\": \"INV-1001\", \"amount\": 99.99, \"status\": \"paid\", \"date\": \"2024-05-10\", \"items\": [{\"sku\": \"PROD-7\", \"name\": \"Premium Widget\", \"qty\": 1, \"unit_price\": 99.99, \"tax\": 0.0}], \"payment_method\": \"credit"
+      },
+      {
+        "type": "llm_call",
+        "span_id": "b42d34a1-726a-4cc8-a06a-465b006eff5e",
+        "model": "claude-3-5-sonnet-20241022",
+        "provider": "anthropic",
+        "input_tokens": 571,
+        "output_tokens": 100,
+        "cost_usd": 0.0032129999999999997
+      },
+      {
+        "type": "tool_call",
+        "span_id": "d104e819-4a9d-4792-8b4b-f067743738e3",
+        "name": "get_invoice",
+        "success": true,
+        "arguments": {
+          "invoice_id": "INV-1001"
+        },
+        "result_summary": "{\"id\": \"INV-1001\", \"amount\": 99.99, \"status\": \"paid\", \"date\": \"2024-05-10\", \"items\": [{\"sku\": \"PROD-7\", \"name\": \"Premium Widget\", \"qty\": 1, \"unit_price\": 99.99, \"tax\": 0.0}], \"payment_method\": \"credit"
+      },
+      {
+        "type": "tool_call",
+        "span_id": "58f88cb3-3fcf-40b0-9540-40984c06663a",
+        "name": "refund_order",
+        "success": true,
+        "arguments": {
+          "order_id": "INV-1001",
+          "amount": 99.99
+        },
+        "result_summary": "{\"status\": \"refunded\", \"ref\": \"REF-9901\", \"eta_days\": 3}"
+      },
+      {
+        "type": "llm_call",
+        "span_id": "8a3a43e2-91fa-4b4a-9af8-c23a3c9d2625",
+        "model": "claude-3-5-sonnet-20241022",
+        "provider": "anthropic",
+        "input_tokens": 910,
+        "output_tokens": 51,
+        "cost_usd": 0.0034950000000000003
+      }
+    ]
+  }
+]
