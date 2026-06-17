@@ -1,0 +1,236 @@
+{
+  "baseline": {
+    "run_id": "07245b0d-f55b-424c-960e-d1a9ad591c49",
+    "agent_name": "support",
+    "task": "Refund invoice #1001",
+    "llm_calls": [
+      {
+        "id": "ac85df67-95ff-44d5-8269-a964f54936f3",
+        "model": "gpt-4",
+        "prompt_tokens": 1399,
+        "completion_tokens": 245,
+        "cost": 0.05666999999999999,
+        "latency_ms": 423.08778621027415,
+        "timestamp": "2026-06-16T21:23:02.301878Z"
+      },
+      {
+        "id": "e4d80a1a-0157-4b57-b4a4-1a48030f4b61",
+        "model": "gpt-4",
+        "prompt_tokens": 1492,
+        "completion_tokens": 161,
+        "cost": 0.054419999999999996,
+        "latency_ms": 531.8364416904858,
+        "timestamp": "2026-06-16T21:23:02.301919Z"
+      },
+      {
+        "id": "c37eeaef-04ab-4b3e-8911-a5e8138f58c3",
+        "model": "gpt-4",
+        "prompt_tokens": 2140,
+        "completion_tokens": 241,
+        "cost": 0.07866,
+        "latency_ms": 767.6587521846095,
+        "timestamp": "2026-06-16T21:23:02.301943Z"
+      }
+    ],
+    "tool_calls": [
+      {
+        "id": "3dc402b5-90ef-4fe2-b530-c65f20b5f239",
+        "name": "get_customer",
+        "arguments": {
+          "email": "customer@example.com"
+        },
+        "result": {
+          "id": "cust_42",
+          "name": "John Doe",
+          "email": "customer@example.com"
+        },
+        "success": true,
+        "latency_ms": 168.11089816712987,
+        "tokens_used": 61,
+        "cost": 0.0,
+        "timestamp": "2026-06-16T21:23:02.301899Z"
+      },
+      {
+        "id": "1be6411f-112c-4165-90d7-01a8d2722496",
+        "name": "get_invoice",
+        "arguments": {
+          "invoice_id": "INV-1001"
+        },
+        "result": {
+          "id": "INV-1001",
+          "amount": 99.99,
+          "status": "paid"
+        },
+        "success": true,
+        "latency_ms": 78.7982046483205,
+        "tokens_used": 67,
+        "cost": 0.0,
+        "timestamp": "2026-06-16T21:23:02.301909Z"
+      },
+      {
+        "id": "eb38c9ac-c221-4f14-9001-9110d1966629",
+        "name": "refund_order",
+        "arguments": {
+          "order_id": "INV-1001",
+          "amount": 99.99
+        },
+        "result": {
+          "status": "refunded",
+          "ref": "REF-9901"
+        },
+        "success": true,
+        "latency_ms": 115.0825834368746,
+        "tokens_used": 79,
+        "cost": 0.0,
+        "timestamp": "2026-06-16T21:23:02.301927Z"
+      }
+    ],
+    "total_cost": 0.18974999999999997,
+    "total_tokens": 5885,
+    "latency_ms": 0.11195905972272158,
+    "success": true,
+    "quality_score": 0.9456968497559932,
+    "metadata": {}
+  },
+  "optimized": {
+    "run_id": "67baa23f-cc27-4ca6-b7e7-0e9fa426793a",
+    "agent_name": "support",
+    "task": "Refund invoice #1001",
+    "llm_calls": [
+      {
+        "id": "1252b2e1-0899-4886-bab9-03d52e6cf17b",
+        "model": "gpt-4",
+        "prompt_tokens": 692,
+        "completion_tokens": 98,
+        "cost": 0.026639999999999997,
+        "latency_ms": 655.678838673765,
+        "timestamp": "2026-06-16T21:23:02.302120Z"
+      },
+      {
+        "id": "dde5bf02-b1fb-4ce4-9298-eaee5bea0e69",
+        "model": "gpt-4",
+        "prompt_tokens": 1412,
+        "completion_tokens": 82,
+        "cost": 0.047279999999999996,
+        "latency_ms": 906.1117444824804,
+        "timestamp": "2026-06-16T21:23:02.302148Z"
+      },
+      {
+        "id": "b992fcba-9a43-4252-8f88-1b20d6b818c5",
+        "model": "gpt-4",
+        "prompt_tokens": 1507,
+        "completion_tokens": 224,
+        "cost": 0.058649999999999994,
+        "latency_ms": 277.21930909324175,
+        "timestamp": "2026-06-16T21:23:02.302175Z"
+      }
+    ],
+    "tool_calls": [
+      {
+        "id": "d8747455-288a-4364-ad43-743677cab555",
+        "name": "search_docs",
+        "arguments": {
+          "query": "Refund invoice #1001"
+        },
+        "result": [
+          "No relevant docs found."
+        ],
+        "success": true,
+        "latency_ms": 53.910634115844864,
+        "tokens_used": 59,
+        "cost": 0.0,
+        "timestamp": "2026-06-16T21:23:02.302126Z"
+      },
+      {
+        "id": "623250f3-8bd1-450b-9c90-2ac4314de31e",
+        "name": "get_customer",
+        "arguments": {
+          "email": "customer@example.com"
+        },
+        "result": {
+          "id": "cust_42",
+          "name": "John Doe",
+          "email": "customer@example.com"
+        },
+        "success": true,
+        "latency_ms": 206.71849257472243,
+        "tokens_used": 65,
+        "cost": 0.0,
+        "timestamp": "2026-06-16T21:23:02.302134Z"
+      },
+      {
+        "id": "a19ce3e5-1c55-4b2a-9928-2ac7cfb4f2d3",
+        "name": "get_invoice",
+        "arguments": {
+          "invoice_id": "INV-1001"
+        },
+        "result": {
+          "id": "INV-1001",
+          "amount": 99.99,
+          "status": "paid"
+        },
+        "success": true,
+        "latency_ms": 72.82987794779059,
+        "tokens_used": 78,
+        "cost": 0.0,
+        "timestamp": "2026-06-16T21:23:02.302141Z"
+      },
+      {
+        "id": "f7ca6f12-2851-46d5-89ca-f1a2be437a8d",
+        "name": "get_invoice",
+        "arguments": {
+          "invoice_id": "INV-1001"
+        },
+        "result": {
+          "id": "INV-1001",
+          "amount": 99.99,
+          "status": "paid"
+        },
+        "success": true,
+        "latency_ms": 92.80948387499518,
+        "tokens_used": 72,
+        "cost": 0.0,
+        "timestamp": "2026-06-16T21:23:02.302161Z"
+      },
+      {
+        "id": "38f0d63f-7427-4c94-bab2-087a8f58b8f3",
+        "name": "refund_order",
+        "arguments": {
+          "order_id": "INV-1001",
+          "amount": 99.99
+        },
+        "result": {
+          "status": "refunded",
+          "ref": "REF-9901"
+        },
+        "success": true,
+        "latency_ms": 86.94861285561335,
+        "tokens_used": 36,
+        "cost": 0.0,
+        "timestamp": "2026-06-16T21:23:02.302168Z"
+      }
+    ],
+    "total_cost": 0.13256999999999997,
+    "total_tokens": 4325,
+    "latency_ms": 0.048501134354359966,
+    "success": true,
+    "quality_score": 0.8738377931592396,
+    "metadata": {
+      "optimized": true,
+      "optimizations_applied": {
+        "loop_detection": true,
+        "tool_ranking": true,
+        "context_compression": true
+      }
+    }
+  },
+  "runs": 3,
+  "cost_savings_pct": 34.12,
+  "token_reduction_pct": 32.02,
+  "tool_call_reduction_pct": -40.0,
+  "latency_change_pct": -31.4,
+  "success_rate_delta": 0.0,
+  "quality_delta": -0.0192,
+  "result": "PASS",
+  "report_path": null
+}

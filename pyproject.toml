@@ -1,0 +1,73 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "runcore"
+version = "0.2.0"
+description = "AI Agent Runtime Optimization Engine — measure, analyze, and optimize any LLM agent"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+authors = [
+    { name = "RunCore", email = "ppereira@saber3d.pt" },
+]
+keywords = [
+    "llm", "agent", "optimization", "benchmark", "observability",
+    "anthropic", "openai", "atir", "cost", "tracing",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "typer>=0.9.0",
+    "rich>=13.0.0",
+    "tiktoken>=0.6.0",
+    "pydantic>=2.0.0",
+    "jinja2>=3.1.0",
+    "fastapi>=0.110.0",
+    "uvicorn>=0.29.0",
+]
+
+[project.optional-dependencies]
+anthropic = ["anthropic>=0.25.0"]
+openai    = ["openai>=1.0.0"]
+langchain = ["langchain-core>=0.1.0"]
+all       = ["anthropic>=0.25.0", "openai>=1.0.0", "langchain-core>=0.1.0"]
+dev       = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.23.0",
+    "anthropic>=0.25.0",
+]
+
+[project.urls]
+Homepage      = "https://github.com/runcore-ai/runcore"
+Documentation = "https://github.com/runcore-ai/runcore#readme"
+Repository    = "https://github.com/runcore-ai/runcore"
+"Bug Tracker" = "https://github.com/runcore-ai/runcore/issues"
+"ATIR Spec"   = "https://github.com/runcore-ai/runcore/blob/main/ATIR_SPEC.md"
+
+[project.scripts]
+runcore = "runcore.cli.main:app"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["runcore*"]
+
+[tool.setuptools.package-data]
+"runcore.reports" = ["templates/*.j2"]

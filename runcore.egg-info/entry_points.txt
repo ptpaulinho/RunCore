@@ -1,0 +1,2 @@
+[console_scripts]
+runcore = runcore.cli.main:app

@@ -1,0 +1,8 @@
+{
+  "max_tools": 10,
+  "min_quality_threshold": 0.8,
+  "cost_reduction_target": 0.3,
+  "enable_context_compression": true,
+  "enable_loop_detection": true,
+  "enable_tool_ranking": true
+}

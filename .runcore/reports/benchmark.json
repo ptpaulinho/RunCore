@@ -1,0 +1,300 @@
+{
+  "baseline": {
+    "run_id": "769d7038-e719-4821-8c3f-2791424414f7",
+    "agent_name": "support",
+    "task": "Refund invoice #1001 for customer john@example.com",
+    "llm_calls": [
+      {
+        "id": "1ba0647a-ca3b-4490-b355-f648d4bbb3fe",
+        "model": "claude-3-5-sonnet-20241022",
+        "prompt_tokens": 89,
+        "completion_tokens": 55,
+        "cost": 0.0010919999999999999,
+        "latency_ms": 107.34459298422203,
+        "timestamp": "2026-06-17T17:35:57.892983Z"
+      },
+      {
+        "id": "954fe9bb-87f9-4ec9-a444-2a7029ffb4ad",
+        "model": "claude-3-5-sonnet-20241022",
+        "prompt_tokens": 573,
+        "completion_tokens": 100,
+        "cost": 0.0032189999999999996,
+        "latency_ms": 199.4896248257652,
+        "timestamp": "2026-06-17T17:35:57.895543Z"
+      },
+      {
+        "id": "7d1ea153-0aec-47a3-b74b-79e8c582a779",
+        "model": "claude-3-5-sonnet-20241022",
+        "prompt_tokens": 728,
+        "completion_tokens": 51,
+        "cost": 0.0029490000000000002,
+        "latency_ms": 315.1696103751718,
+        "timestamp": "2026-06-17T17:35:57.896776Z"
+      }
+    ],
+    "tool_calls": [
+      {
+        "id": "611e3f98-4bc6-42de-ba4c-30f143487e71",
+        "name": "search_docs",
+        "arguments": {
+          "query": "refund policy eligibility requirements"
+        },
+        "result": {
+          "results": [
+            "Refund Policy: Items purchased within 30 days are eligible for a full refund.",
+            "Processing time: 3-5 business days after approval.",
+            "Exceptions: Digital goods and gift cards are non-refundable.",
+            "Required: Customer must provide order ID and reason for return."
+          ]
+        },
+        "success": true,
+        "latency_ms": 223.12365051571717,
+        "tokens_used": 77,
+        "cost": 0.0,
+        "timestamp": "2026-06-17T17:35:57.893229Z"
+      },
+      {
+        "id": "51c2e908-ed56-47d2-958e-5767e4fa1d22",
+        "name": "get_customer",
+        "arguments": {
+          "email": "customer@example.com"
+        },
+        "result": {
+          "id": "cust_42",
+          "name": "John Doe",
+          "email": "customer@example.com",
+          "tier": "standard",
+          "since": "2022-01-15",
+          "orders": 14,
+          "lifetime_value": 1240.5,
+          "address": "123 Main St, Springfield, IL 62701",
+          "phone": "+1-555-0100",
+          "preferences": {
+            "newsletter": true,
+            "sms": false,
+            "refund_method": "original_payment"
+          },
+          "notes": "Long-standing customer, no previous disputes. Auto-approve refunds under $200.",
+          "last_login": "2024-05-09T14:32:11Z"
+        },
+        "success": true,
+        "latency_ms": 135.63806631755182,
+        "tokens_used": 156,
+        "cost": 0.0,
+        "timestamp": "2026-06-17T17:35:57.893647Z"
+      },
+      {
+        "id": "f0a5ab8a-9ae6-43f7-8830-bad53cadba46",
+        "name": "get_invoice",
+        "arguments": {
+          "invoice_id": "INV-1001"
+        },
+        "result": {
+          "id": "INV-1001",
+          "amount": 99.99,
+          "status": "paid",
+          "date": "2024-05-10",
+          "items": [
+            {
+              "sku": "PROD-7",
+              "name": "Premium Widget",
+              "qty": 1,
+              "unit_price": 99.99,
+              "tax": 0.0
+            }
+          ],
+          "payment_method": "credit_card",
+          "card_last4": "4242",
+          "currency": "USD",
+          "billing_address": "123 Main St, Springfield, IL 62701",
+          "refund_eligible": true,
+          "refund_window_days": 30,
+          "days_since_purchase": 6,
+          "transaction_id": "txn_3NxOW2LkdIwHu7ix0Y0VKQGE"
+        },
+        "success": true,
+        "latency_ms": 158.12749500522995,
+        "tokens_used": 180,
+        "cost": 0.0,
+        "timestamp": "2026-06-17T17:35:57.893960Z"
+      },
+      {
+        "id": "9b66fd1c-6636-4046-a6eb-b3ea052156e1",
+        "name": "refund_order",
+        "arguments": {
+          "order_id": "INV-1001",
+          "amount": 99.99
+        },
+        "result": {
+          "status": "refunded",
+          "ref": "REF-9901",
+          "eta_days": 3
+        },
+        "success": true,
+        "latency_ms": 228.93389240285708,
+        "tokens_used": 47,
+        "cost": 0.0,
+        "timestamp": "2026-06-17T17:35:57.895777Z"
+      }
+    ],
+    "total_cost": 0.00726,
+    "total_tokens": 2056,
+    "latency_ms": 4.256583983078599,
+    "success": true,
+    "quality_score": 1.0,
+    "metadata": {}
+  },
+  "optimized": {
+    "run_id": "6530197e-d34e-4bef-b70f-81df3cfc78a9",
+    "agent_name": "support",
+    "task": "Refund invoice #1001 for customer john@example.com",
+    "llm_calls": [
+      {
+        "id": "f2f442dc-c0b6-4c16-b0f1-b96bc464c0bc",
+        "model": "claude-3-5-sonnet-20241022",
+        "prompt_tokens": 59,
+        "completion_tokens": 55,
+        "cost": 0.0010019999999999999,
+        "latency_ms": 129.26159778105364,
+        "timestamp": "2026-06-17T17:35:57.898302Z"
+      },
+      {
+        "id": "80cfacc6-b3ed-420d-b09d-01b281ddb75e",
+        "model": "claude-3-5-sonnet-20241022",
+        "prompt_tokens": 359,
+        "completion_tokens": 100,
+        "cost": 0.002577,
+        "latency_ms": 257.4658730373102,
+        "timestamp": "2026-06-17T17:35:57.930680Z"
+      },
+      {
+        "id": "c0d9f937-a365-4de4-aa6f-86639fd2517c",
+        "model": "claude-3-5-sonnet-20241022",
+        "prompt_tokens": 514,
+        "completion_tokens": 51,
+        "cost": 0.002307,
+        "latency_ms": 243.5089361654197,
+        "timestamp": "2026-06-17T17:35:57.972897Z"
+      }
+    ],
+    "tool_calls": [
+      {
+        "id": "2792bd03-f419-4662-8afe-18772ed4a44b",
+        "name": "search_docs",
+        "arguments": {
+          "query": "refund policy eligibility requirements"
+        },
+        "result": {
+          "results": [
+            "Refund Policy: Items purchased within 30 days are eligible for a full refund.",
+            "Processing time: 3-5 business days after approval.",
+            "Exceptions: Digital goods and gift cards are non-refundable.",
+            "Required: Customer must provide order ID and reason for return."
+          ]
+        },
+        "success": true,
+        "latency_ms": 196.97675560944202,
+        "tokens_used": 77,
+        "cost": 0.0,
+        "timestamp": "2026-06-17T17:35:57.898426Z"
+      },
+      {
+        "id": "a1489ac9-c3bf-4c4f-a712-cdc95a33142d",
+        "name": "get_customer",
+        "arguments": {
+          "email": "customer@example.com"
+        },
+        "result": {
+          "id": "cust_42",
+          "name": "John Doe",
+          "email": "customer@example.com",
+          "tier": "standard",
+          "since": "2022-01-15",
+          "orders": 14,
+          "lifetime_value": 1240.5,
+          "address": "123 Main St, Springfield, IL 62701",
+          "phone": "+1-555-0100",
+          "preferences": {
+            "newsletter": true,
+            "sms": false,
+            "refund_method": "original_payment"
+          },
+          "notes": "Long-standing customer, no previous disputes. Auto-approve refunds under $200.",
+          "last_login": "2024-05-09T14:32:11Z"
+        },
+        "success": true,
+        "latency_ms": 116.9306913218457,
+        "tokens_used": 156,
+        "cost": 0.0,
+        "timestamp": "2026-06-17T17:35:57.898737Z"
+      },
+      {
+        "id": "05198fcb-d4c8-4609-b244-79a3afc2b40d",
+        "name": "refund_order",
+        "arguments": {
+          "order_id": "INV-1001",
+          "amount": 99.99
+        },
+        "result": {
+          "status": "refunded",
+          "ref": "REF-9901",
+          "eta_days": 3
+        },
+        "success": true,
+        "latency_ms": 276.70545976330004,
+        "tokens_used": 47,
+        "cost": 0.0,
+        "timestamp": "2026-06-17T17:35:57.930785Z"
+      }
+    ],
+    "total_cost": 0.005886,
+    "total_tokens": 1418,
+    "latency_ms": 74.95795795693994,
+    "success": true,
+    "quality_score": 1.0,
+    "metadata": {}
+  },
+  "runs": 6,
+  "cost_savings_pct": 21.65,
+  "token_reduction_pct": 36.54,
+  "tool_call_reduction_pct": 35.71,
+  "latency_change_pct": 1706.21,
+  "success_rate_delta": 0.0,
+  "quality_delta": 0.036,
+  "result": "PASS",
+  "report_path": null,
+  "replacement_findings": [
+    {
+      "tool": "get_invoice",
+      "pattern": "invoice_lookup",
+      "replaceability_score": 1.0,
+      "suggestion": "# -----------------------------------------------------------------------\n# Suggested replacement for tool: 'get_invoice'\n# Pattern : invoice_lookup  (lookup)\n# Calls seen in trace: 9\n# Sample arguments   : {'invoice_id': 'INV-1001'}\n# -----------------------------------------------------------------------\n\nimport json\nfrom pathlib import Path\nfrom typing import Any\n\n# ---------------------------------------------------------------------------\n# Inline invoice lookup \u2014 replaces LLM tool call\n# ---------------------------------------------------------------------------\n# Assumes invoices are stored in a JSON file or dict; adapt as needed.\n\ndef get_invoice(invoice_id: str, store: dict[str, Any] | None = None) -> dict[str, Any] | None:\n    \"\"\"Return the invoice record for *invoice_id*, or None if not found.\"\"\"\n    if store is not None:\n        return store.get(invoice_id)\n\n    # Fallback: load from a JSON file next to this module\n    data_path = Path(__file__).with_name(\"invoices.json\")\n    if data_path.exists():\n        with data_path.open() as fh:\n            store = json.load(fh)\n        return store.get(invoice_id)\n\n    raise FileNotFoundError(\n        \"No invoice store provided and invoices.json not found. \"\n        \"Pass a dict as the `store` argument.\"\n    )\n",
+      "call_count": 9,
+      "pattern_type": "lookup"
+    },
+    {
+      "tool": "search_docs",
+      "pattern": "unknown",
+      "replaceability_score": 0.6,
+      "suggestion": "",
+      "call_count": 7,
+      "pattern_type": null
+    },
+    {
+      "tool": "get_customer",
+      "pattern": "unknown",
+      "replaceability_score": 0.6,
+      "suggestion": "",
+      "call_count": 6,
+      "pattern_type": null
+    },
+    {
+      "tool": "refund_order",
+      "pattern": "unknown",
+      "replaceability_score": 0.6,
+      "suggestion": "",
+      "call_count": 6,
+      "pattern_type": null
+    }
+  ]
+}
