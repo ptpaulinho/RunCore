@@ -6,6 +6,34 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.5.0] — 2026-06-17
+
+### Added
+
+**Fase 10: Demo + Pitch**
+- `examples/demo_runcore.py` — self-contained demo script (no API keys needed); shows real CpST improvement via simulated agents: **92% CpST reduction**, 11.7% token reduction, 5 advisor prescriptions with combined ~55% estimated savings; prints rich before/after table; exports ATIR trace to `demo_trace.json`
+- `PITCH.md` — enterprise pitch one-pager: problem/solution/metrics/stack/integrations/business model/market timing; designed for CTOs and engineering directors
+
+**Fase 11: RunCore Cloud SaaS**
+- `runcore/server/storage.py` — SQLite-backed multi-tenant storage:
+  - `create_tenant()`, `get_tenant_by_key()`, `get_tenant_by_id()`, `list_tenants()`
+  - `ingest_trace()` — ATIR trace storage with upsert; full tenant isolation
+  - `list_traces()` — paginated, sorted by started_at DESC
+  - `get_trace()` — tenant-scoped single trace fetch
+  - `tenant_stats()` — aggregate KPIs: CpST, total_cost, success_rate, agent count
+- Cloud API endpoints (all under `/cloud/`):
+  - `POST /cloud/tenants` — create tenant, returns API key (shown once)
+  - `GET /cloud/tenants` — admin list (no API keys exposed)
+  - `POST /cloud/ingest` — ingest 1+ ATIR traces; Bearer API key auth; returns trace_ids + errors
+  - `GET /cloud/traces` — paginated trace list for authenticated tenant
+  - `GET /cloud/traces/{id}` — full ATIR JSON for single trace
+  - `GET /cloud/dashboard` — HTML dashboard with KPIs, trace table, quick-start code
+  - `GET /cloud/stats` — JSON KPI summary
+- Strict tenant isolation: `_require_tenant()` middleware; cross-tenant trace access returns 404
+- `tests/unit/test_cloud.py` — 30 tests covering storage + all HTTP endpoints; each test gets isolated SQLite via pytest fixture
+
+---
+
 ## [0.4.0] — 2026-06-17
 
 ### Added

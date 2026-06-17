@@ -22,7 +22,16 @@ from runcore.benchmark.comparison import BenchmarkComparison
 from runcore.core.models import OptimizationConfig
 from runcore.reports.generator import ReportGenerator
 
-app = FastAPI(title="RunCore Dashboard", version="0.1.0")
+app = FastAPI(title="RunCore Dashboard", version="0.4.0")
+
+# ---------------------------------------------------------------------------
+# Cloud storage — initialise on startup
+# ---------------------------------------------------------------------------
+from runcore.server import storage as _store
+
+@app.on_event("startup")
+def _startup():
+    _store.init_db()
 
 _REPORTS_DIR = Path(".runcore/reports")
 _REPORTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -1103,3 +1112,225 @@ async def compare_configs(req: CompareRequest, background_tasks: BackgroundTasks
             },
         },
     }
+
+
+# ===========================================================================
+# RunCore Cloud — Multi-tenant ingest API
+# ===========================================================================
+
+def _require_tenant(request: Request) -> dict:
+    """Extract and validate Bearer API key from Authorization header."""
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing Authorization: Bearer <api_key>")
+    api_key = auth.removeprefix("Bearer ").strip()
+    tenant = _store.get_tenant_by_key(api_key)
+    if tenant is None:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+    return tenant
+
+
+# ---------------------------------------------------------------------------
+# Tenant management (admin — no auth for simplicity; add middleware in prod)
+# ---------------------------------------------------------------------------
+
+class CreateTenantRequest(BaseModel):
+    name: str
+    plan: str = "free"
+
+
+@app.post("/cloud/tenants", status_code=201)
+def create_tenant(req: CreateTenantRequest) -> dict:
+    """Create a new tenant. Returns id + api_key — store the key safely, it is shown only once."""
+    return _store.create_tenant(name=req.name, plan=req.plan)
+
+
+@app.get("/cloud/tenants")
+def list_tenants() -> dict:
+    """List all tenants (admin view — id, name, plan, created_at; no API keys)."""
+    return {"tenants": _store.list_tenants()}
+
+
+# ---------------------------------------------------------------------------
+# Ingest — authenticated by API key
+# ---------------------------------------------------------------------------
+
+@app.post("/cloud/ingest")
+async def ingest_traces(request: Request) -> dict:
+    """Ingest one or more ATIR traces for the authenticated tenant.
+
+    Body: ``{"traces": [<ATIRTrace dict>, ...]}``  (array always, even for one)
+
+    Returns: ``{"ingested": N, "trace_ids": [...]}``
+
+    Example::
+
+        import runcore, requests
+
+        with runcore.capture("my_agent", task="classify") as t:
+            ...
+
+        trace = t.get_atir()
+        resp = requests.post(
+            "https://your-runcore-cloud/cloud/ingest",
+            headers={"Authorization": "Bearer rc_<key>"},
+            json={"traces": [trace.model_dump()]},
+        )
+    """
+    tenant = _require_tenant(request)
+    body = await request.json()
+    raw_traces = body.get("traces", [])
+    if not raw_traces:
+        raise HTTPException(status_code=400, detail="No traces provided")
+
+    ids = []
+    errors = []
+    for i, t in enumerate(raw_traces):
+        try:
+            tid = _store.ingest_trace(tenant["id"], t)
+            ids.append(tid)
+        except Exception as exc:
+            errors.append({"index": i, "error": str(exc)})
+
+    return {
+        "ingested": len(ids),
+        "trace_ids": ids,
+        "errors": errors,
+        "tenant_id": tenant["id"],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Tenant trace listing + detail
+# ---------------------------------------------------------------------------
+
+@app.get("/cloud/traces")
+def get_traces(request: Request, limit: int = 50, offset: int = 0) -> dict:
+    """List traces for the authenticated tenant, newest first."""
+    tenant = _require_tenant(request)
+    traces = _store.list_traces(tenant["id"], limit=limit, offset=offset)
+    return {"traces": traces, "tenant_id": tenant["id"], "count": len(traces)}
+
+
+@app.get("/cloud/traces/{trace_id}")
+def get_trace(trace_id: str, request: Request) -> dict:
+    """Return the full ATIR trace JSON for a single trace."""
+    tenant = _require_tenant(request)
+    trace = _store.get_trace(tenant["id"], trace_id)
+    if trace is None:
+        raise HTTPException(status_code=404, detail=f"Trace {trace_id} not found")
+    return trace
+
+
+# ---------------------------------------------------------------------------
+# Tenant dashboard — HTML + JSON stats
+# ---------------------------------------------------------------------------
+
+@app.get("/cloud/dashboard", response_class=HTMLResponse)
+def tenant_dashboard(request: Request) -> str:
+    """HTML dashboard scoped to the authenticated tenant's traces."""
+    tenant = _require_tenant(request)
+    stats  = _store.tenant_stats(tenant["id"])
+    traces = _store.list_traces(tenant["id"], limit=20)
+
+    total      = stats.get("total_traces") or 0
+    avg_cost   = stats.get("avg_cost") or 0
+    avg_cpst   = stats.get("avg_cpst") or 0
+    best_cpst  = stats.get("best_cpst") or 0
+    succ_rate  = stats.get("success_rate") or 0
+    total_cost = stats.get("total_cost") or 0
+    last_trace = (stats.get("last_trace") or "—")[:10]
+    agents     = stats.get("agents") or 0
+
+    rows = ""
+    for tr in traces:
+        sid   = (tr.get("id") or "")[:8]
+        agent = tr.get("agent_name") or "—"
+        fw    = tr.get("framework") or "—"
+        task  = (tr.get("task") or "—")[:50]
+        st    = (tr.get("started_at") or "—")[:19].replace("T", " ")
+        ok    = "✓" if tr.get("success") else "✗"
+        color = "#4ade80" if tr.get("success") else "#f87171"
+        cost  = f'${tr["total_cost_usd"]:.5f}' if tr.get("total_cost_usd") else "—"
+        cpst  = f'${tr["cpst"]:.5f}' if tr.get("cpst") else "—"
+        tok   = str(tr.get("total_tokens") or "—")
+        rows += f"""<tr>
+          <td style="font-family:monospace;font-size:.78rem;color:#94a3b8">{sid}</td>
+          <td>{agent}</td><td style="color:#94a3b8">{fw}</td>
+          <td style="color:#94a3b8;font-size:.8rem">{task}</td>
+          <td style="color:{color};font-weight:600">{ok}</td>
+          <td style="font-family:monospace">{cost}</td>
+          <td style="font-family:monospace;color:#a78bfa">{cpst}</td>
+          <td style="color:#60a5fa">{tok}</td>
+          <td style="color:#64748b;font-size:.8rem">{st}</td>
+        </tr>"""
+
+    return f"""<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RunCore Cloud — {tenant['name']}</title>
+<style>
+:root{{--bg:#0c0e14;--surface:#131720;--border:#252d3d;--text:#e2e8f0;--muted:#64748b;--accent:#7c3aed;--accent-light:#a78bfa;--green:#4ade80;--red:#f87171;--blue:#60a5fa}}
+*{{box-sizing:border-box;margin:0;padding:0}}
+body{{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}}
+.nav{{background:var(--surface);border-bottom:1px solid var(--border);padding:0 32px;display:flex;align-items:center;height:56px;gap:16px}}
+.logo{{font-size:1.2rem;font-weight:800;color:var(--accent)}}
+.logo span{{color:var(--accent-light)}}
+.tenant-badge{{background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3);color:var(--accent-light);padding:3px 10px;border-radius:20px;font-size:.78rem;font-weight:600}}
+.plan-badge{{background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.2);color:var(--blue);padding:3px 10px;border-radius:20px;font-size:.75rem}}
+.muted{{color:var(--muted);font-size:.8rem;margin-left:auto}}
+.page{{padding:28px 32px;max-width:1200px;margin:0 auto}}
+.kpi-grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}}
+.kpi{{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 22px}}
+.kpi-label{{font-size:.72rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px}}
+.kpi-value{{font-size:1.8rem;font-weight:700;line-height:1}}
+.kpi-sub{{font-size:.75rem;color:var(--muted);margin-top:5px}}
+.card{{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:22px}}
+.card-title{{font-size:.88rem;font-weight:600;color:var(--accent-light);margin-bottom:16px}}
+table{{width:100%;border-collapse:collapse;font-size:.83rem}}
+thead th{{text-align:left;padding:8px 12px;font-size:.7rem;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);border-bottom:1px solid var(--border)}}
+tbody td{{padding:10px 12px;border-bottom:1px solid rgba(37,45,61,.4);vertical-align:middle}}
+tbody tr:last-child td{{border-bottom:none}}
+tbody tr:hover td{{background:rgba(124,58,237,.03)}}
+.code{{font-family:'SF Mono',monospace;font-size:.78rem;background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.2);border-radius:6px;padding:10px 14px;color:var(--accent-light);line-height:1.6;margin-top:12px}}
+</style></head><body>
+<nav class="nav">
+  <div class="logo">Run<span>Core</span> <span style="color:var(--muted);font-weight:400;font-size:.9rem">Cloud</span></div>
+  <span class="tenant-badge">{tenant['name']}</span>
+  <span class="plan-badge">{tenant['plan']}</span>
+  <span class="muted">tenant: {tenant['id'][:8]}… · last trace: {last_trace}</span>
+</nav>
+<div class="page">
+  <div class="kpi-grid">
+    <div class="kpi"><div class="kpi-label">Total Traces</div><div class="kpi-value" style="color:var(--accent-light)">{total}</div><div class="kpi-sub">{agents} agent(s)</div></div>
+    <div class="kpi"><div class="kpi-label">Success Rate</div><div class="kpi-value" style="color:{'var(--green)' if succ_rate>=80 else 'var(--red)'}">{succ_rate:.1f}%</div><div class="kpi-sub">of all traces</div></div>
+    <div class="kpi"><div class="kpi-label">Avg CpST</div><div class="kpi-value" style="color:var(--blue)">${avg_cpst:.5f}</div><div class="kpi-sub">cost per successful task</div></div>
+    <div class="kpi"><div class="kpi-label">Total Spend</div><div class="kpi-value" style="color:var(--accent-light)">${total_cost:.4f}</div><div class="kpi-sub">avg ${avg_cost:.5f}/trace</div></div>
+  </div>
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-title">Recent Traces (last 20)</div>
+    {'<table><thead><tr><th>ID</th><th>Agent</th><th>Framework</th><th>Task</th><th>OK</th><th>Cost</th><th>CpST</th><th>Tokens</th><th>Started</th></tr></thead><tbody>' + rows + '</tbody></table>' if traces else '<p style="color:var(--muted);font-size:.88rem">No traces ingested yet.</p>'}
+  </div>
+  <div class="card">
+    <div class="card-title">Ingest API — Quick Start</div>
+    <div class="code">
+import runcore, requests<br><br>
+with runcore.capture("my_agent", task="classify") as tracer:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;...  # your agent code<br><br>
+trace = tracer.get_atir()<br>
+requests.post(<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"https://your-runcore-cloud/cloud/ingest",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;headers={{"Authorization": "Bearer rc_YOUR_API_KEY"}},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;json={{"traces": [trace.model_dump()]}},<br>
+)
+    </div>
+  </div>
+</div></body></html>"""
+
+
+@app.get("/cloud/stats")
+def tenant_stats_api(request: Request) -> dict:
+    """Return KPI stats for the authenticated tenant as JSON."""
+    tenant = _require_tenant(request)
+    stats  = _store.tenant_stats(tenant["id"])
+    return {"tenant_id": tenant["id"], "tenant_name": tenant["name"], **stats}
