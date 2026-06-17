@@ -7,9 +7,9 @@
 [![Python](https://img.shields.io/pypi/pyversions/runcore)](https://pypi.org/project/runcore/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 
-RunCore measures, analyzes, and **automatically optimizes** any LLM-powered agent — regardless of provider, framework, or architecture.
+> **Observe, measure, and automatically optimize any LLM-powered agent — in 3 lines of code.**
 
-It introduces the **ATIR v1** open standard for agent traces and the **Cost per Successful Task (CpST)** metric as the primary efficiency signal. The unique value: RunCore closes the full loop — **observe → measure → optimize** — in three lines of code.
+RunCore is the first tool that closes the full loop for AI agents: it doesn't just tell you what happened — it blocks waste before it reaches the API, prescribes ranked fixes with estimated savings, and gives you one number to track: **CpST** (Cost per Successful Task).
 
 ```
 pip install runcore
@@ -17,249 +17,140 @@ pip install runcore
 
 ---
 
-## Why RunCore
+## What problem does RunCore solve?
 
-Every other observability tool for LLM agents stops at observation. RunCore goes further:
+AI agents running in production routinely waste **30–60% of LLM spend** on three patterns that no observability tool currently stops:
 
-| Tool | Observes | Measures CpST | Blocks waste in runtime | Prescribes fixes |
-|------|----------|---------------|------------------------|-----------------|
-| LangSmith | ✓ | ✗ | ✗ | ✗ |
-| Helicone | ✓ | ✗ | ✗ | ✗ |
-| Datadog LLM | ✓ | ✗ | ✗ | ✗ |
-| **RunCore** | ✓ | ✓ | ✓ | ✓ |
+| Pattern | Example | Typical waste |
+|---------|---------|--------------|
+| **Duplicate tool calls** | Agent calls `search("invoice 1001")` 4× in one session | 25–40% |
+| **Bloated context** | Full conversation history sent to every LLM call | 15–25% |
+| **Infinite loops** | Agent retries the same failing tool without a guard | 10–30% |
+
+Every existing tool (LangSmith, Helicone, Datadog) **observes** these patterns after the fact. RunCore **blocks them in real time** and tells you exactly how much you saved.
 
 ---
 
-## 3-line integration
+## The RunCore difference
+
+| Capability | LangSmith | Helicone | Datadog LLM | **RunCore** |
+|-----------|-----------|----------|-------------|-------------|
+| Observability (what happened) | ✓ | ✓ | ✓ | ✓ |
+| CpST — unified efficiency metric | ✗ | ✗ | ✗ | ✓ |
+| Blocks waste at runtime | ✗ | ✗ | ✗ | ✓ |
+| Prescribes fixes with estimated $savings | ✗ | ✗ | ✗ | ✓ |
+| Works across all frameworks | ✓ | ✓ | ✓ | ✓ |
+| Open standard trace format (ATIR) | ✗ | ✗ | ✗ | ✓ |
+
+---
+
+## Quickstart — 3 lines of code
 
 ```python
 import runcore
 
-# Zero-code: patches Anthropic + OpenAI SDK automatically
+# Zero-code: patches Anthropic + OpenAI SDKs automatically
 runcore.auto_instrument()
 
 with runcore.capture("my_agent", task="process order INV-1001") as cap:
-    response = anthropic_client.messages.create(...)  # captured automatically
+    # Your existing agent code — unchanged
+    response = anthropic_client.messages.create(
+        model="claude-haiku-20240307",
+        max_tokens=1024,
+        tools=[...],
+        messages=[{"role": "user", "content": "Process order INV-1001"}],
+    )
 
 trace = cap.get_atir()
 print(f"CpST: ${trace.aggregates.cost_per_successful_task:.5f}")
-print(f"Duplicate tool calls: {trace.aggregates.duplicate_tool_calls}")
+print(f"LLM calls: {trace.aggregates.llm_calls}")
+print(f"Tool calls: {trace.aggregates.tool_calls}")
+print(f"Total cost: ${trace.aggregates.total_cost_usd:.5f}")
 ```
 
 ---
 
-## Runtime guards — active optimization
+## Runtime guards — block waste before it costs you
 
-Add `guards=GuardConfig()` to block waste *before* it happens:
+Add `guards=GuardConfig()` to activate three runtime protections:
 
 ```python
-import runcore
 from runcore import GuardConfig
 
-with runcore.capture("my_agent", task="handle ticket", guards=GuardConfig()) as cap:
-    # Duplicate tool calls are blocked automatically (DuplicateToolCallError)
-    # Loop risk is monitored — raises LoopBreakError if threshold exceeded
-    # Context is compressed before LLM calls when tokens > threshold
-    result = agent.run(task)
+with runcore.capture("my_agent", guards=GuardConfig()) as cap:
+    # DuplicateToolCallError raised if agent tries to call same tool twice
+    # LoopBreakError raised if Loop Risk Score > 0.40
+    # Context auto-compressed when messages exceed 800 tokens
+    ...
 
 report = cap.savings_report()
 print(report.summary_line())
-# → "RunCore saved: 5 dup calls blocked, 1200 tokens compressed → ~$0.00390 saved"
+# → "Saved $0.0042: 8 duplicate calls blocked, 312 tokens compressed"
 ```
 
-### Guard configuration
+**GuardConfig options:**
 
 ```python
 GuardConfig(
-    # Block exact-duplicate tool calls (same name + same args)
-    dedup_enabled=True,
-    dedup_scope="turn",           # "turn" resets each LLM turn, "session" = entire run
-
-    # Stop agent when loop risk exceeds threshold
-    loop_break_enabled=True,
-    loop_break_threshold=0.40,    # 0–1; above 0.40 = critical loop detected
-    loop_break_min_calls=4,       # minimum tool calls before guard activates
-
-    # Auto-compress context when input tokens exceed threshold
-    context_compression_enabled=True,
-    context_compression_token_threshold=800,
+    dedup_enabled=True,          # block duplicate tool calls
+    dedup_scope="turn",          # "turn" | "session"
+    loop_break_enabled=True,     # break on LRS > threshold
+    loop_break_threshold=0.40,   # LRS threshold (0–1)
+    context_compression_enabled=True,  # compress context automatically
+    token_threshold=800,         # compress when messages exceed N tokens
 )
 ```
 
 ---
 
-## What RunCore does
-
-| Problem | RunCore solution |
-|---------|-----------------|
-| Agent costs are opaque | Real token + cost accounting at span level |
-| No cross-provider comparison | ATIR v1 — provider-agnostic trace standard |
-| Duplicate tool calls waste money | Runtime dedup guard — blocked before execution |
-| Growing context = growing cost | Auto context compression — 28% avg token reduction |
-| Loop detection too late | Loop Breaker guard — stops runaway agents in real time |
-| "Is my agent getting worse?" | CpST drift monitoring with Slack/webhook alerts |
-| Which model is most efficient? | Provider leaderboard ranked by CpST |
-| Where do I start optimizing? | OptimizationAdvisor — ranked prescriptions with $ savings |
-
----
-
-## Core metrics
-
-### Cost per Successful Task (CpST)
-
-The primary efficiency metric — unifies cost, success, and quality into one number:
-
-```
-CpST = total_cost_usd / max(1, successful_tool_calls)
-```
-
-Lower is better. Comparable across providers and agent versions.
-
-### Loop Risk Score (LRS)
-
-Real-time detection of pathological execution patterns:
-
-```
-LRS = 0.35 × dup_ratio
-    + 0.25 × error_ratio
-    + 0.20 × cycle_ratio
-    + 0.20 × cross_turn_ratio
-```
-
-Scores in [0, 1]. Above 0.20 → warning. Above 0.40 → critical (loop breaker fires).
-
----
-
-## Features
-
-### OptimizationAdvisor
-
-Analyzes a batch of ATIR traces and produces ranked prescriptions with estimated savings:
+## OptimizationAdvisor — ranked prescriptions with estimated savings
 
 ```python
 from runcore.advisor import OptimizationAdvisor
 
 advisor = OptimizationAdvisor()
-report = advisor.analyze(atir_traces)
+report = advisor.analyze(traces, agent_name="support_agent")
 
+print(f"Combined estimated savings: {report.total_estimated_savings_pct():.1f}%")
 for p in report.prescriptions:
-    print(f"[{p.effort.value}] {p.title}: ~{p.estimated_savings_pct:.1f}% savings")
-
-# [low]    Eliminate duplicate tool calls: ~18.3% savings
-# [medium] Compress conversation context: ~12.1% savings
-# [low]    Slim down tool schemas sent to LLM: ~7.4% savings
+    print(f"  {p.title}: ~{p.estimated_savings_pct:.0f}% savings, {p.effort} effort")
 ```
 
-### Real benchmarking
-
-```bash
-# Run baseline + optimized benchmark
-runcore benchmark tests/fixtures/support.json --runs 20
-
-# Compare two configs head-to-head
-runcore compare --config-a '{}' --config-b '{"enable_context_compression": false}'
+Output:
 ```
-
-### Multi-provider leaderboard
-
-```bash
-export ANTHROPIC_API_KEY=sk-ant-...
-export OPENAI_API_KEY=sk-...
-
-runcore compare-providers "Classify this review: great product!" --runs 5
-```
-
-```
-═══════════════════════════════════════════════════════════════════════
-  RunCore Provider Leaderboard  —  ranked by Cost per Successful Task
-═══════════════════════════════════════════════════════════════════════
-  Rank  Provider              Model                      CpST       Cost
-─────────────────────────────────────────────────────────────────────
-  1     Claude Haiku 4.5      claude-haiku-4-5-20251001  $0.00015   $0.00015  ◀ winner
-  2     GPT-4o-mini           gpt-4o-mini                $0.00023   $0.00023
-  3     Claude Sonnet 4.6     claude-sonnet-4-6          $0.00180   $0.00180
-  4     GPT-4o                gpt-4o                     $0.00520   $0.00520
-═══════════════════════════════════════════════════════════════════════
-```
-
-### Continuous monitoring
-
-```bash
-# Watch a trace directory for CpST drift — alerts to Slack
-runcore watch --source .runcore/traces --slack https://hooks.slack.com/... --interval 60
-```
-
-### Web dashboard
-
-```bash
-runcore serve
-# → http://localhost:8000
-```
-
-Live benchmark progress via SSE. OptimizationAdvisor panel shows after each run.
-
----
-
-## ATIR v1 — Agent Trace Intermediate Representation
-
-An open standard for AI agent execution traces. ATIR is to agents what OpenTelemetry is to distributed systems — a common format that decouples producers from consumers.
-
-```python
-# Import from any source
-atir = runcore.atir.from_dict(json.loads(Path("trace.atir.json").read_text()))
-atir = runcore.atir.from_openai_response(openai_response)
-atir = runcore.atir.from_anthropic_response(anthropic_response)
-
-# Inspect
-print(atir.aggregates.cost_per_successful_task)
-print(atir.aggregates.duplicate_tool_calls)
-print(atir.aggregates.loop_risk_score)
-```
-
-Full spec: [ATIR_SPEC.md](ATIR_SPEC.md)
-
----
-
-## CLI reference
-
-```
-runcore init                    Initialize .runcore/ in current directory
-runcore profile                 Capture a single agent trace
-runcore benchmark <fixture>     Run baseline + optimized benchmark
-runcore compare-providers       Multi-provider CpST leaderboard
-runcore watch                   Continuous CpST monitoring daemon
-runcore serve                   Start web dashboard
-runcore atir validate <file>    Validate an ATIR trace file
-runcore atir show <file>        Show trace summary
-runcore import <file>           Import trace from any format
-runcore instrument <script.py>  Auto-instrument and run a Python script
+Combined estimated savings: 56.2%
+  Eliminate duplicate tool calls: ~35% savings, low effort
+  Compress growing context: ~18% savings, low effort
+  Cache stable system prompt: ~12% savings, low effort
+  Replace 2 tools with Python: ~8% savings, medium effort
+  Add loop breaker guard: ~6% savings, low effort
 ```
 
 ---
 
-## Ecosystem Adapters
+## Framework adapters
 
-RunCore integrates natively with the three leading agent frameworks. No changes to your existing code are required — wrap once, get full ATIR traces.
+Works with any agent framework — zero code changes to your agent:
 
 ### LangGraph
 
 ```python
-from runcore.sdk.adapters.langgraph import RunCoreLangGraphTracer
+from runcore.sdk.adapters import RunCoreLangGraphTracer
 
-tracer = RunCoreLangGraphTracer(agent_name="my_graph", task="process order")
+tracer = RunCoreLangGraphTracer("my_graph", task="process order")
 app = tracer.wrap(graph.compile())          # transparent proxy
-result = app.invoke({"messages": [...]})    # all nodes recorded automatically
 
+result = app.invoke({"messages": [...]})    # all nodes recorded
 trace = tracer.get_atir()
-print(f"CpST: ${trace.aggregates.cost_per_successful_task:.5f}")
+print(tracer.savings_report())
 ```
 
 ### CrewAI
 
 ```python
-from runcore.sdk.adapters.crewai import trace_crew
+from runcore.sdk.adapters import trace_crew
 
-with trace_crew("support_crew", task="handle tickets") as tracer:
+with trace_crew("support_crew", task="handle ticket #1234") as tracer:
     result = crew.kickoff()
 
 trace = tracer.get_atir()
@@ -268,55 +159,156 @@ trace = tracer.get_atir()
 ### AutoGen
 
 ```python
-from runcore.sdk.adapters.autogen import RunCoreAutoGenTracer
+from runcore.sdk.adapters import RunCoreAutoGenTracer
 
-tracer = RunCoreAutoGenTracer(agent_name="autogen_agent", task="code review")
+tracer = RunCoreAutoGenTracer("code_reviewer", task="review PR #42")
 result = tracer.initiate_chat(user_proxy, assistant, message="Review this PR")
-
 trace = tracer.get_atir()
 ```
 
 ### LangChain / LCEL
 
-Two modes — **Tracer** (owns the Capture, like the other adapters) or **Callback** (attaches to an existing `runcore.capture()` context):
-
 ```python
-from runcore.sdk.adapters.langchain import RunCoreLangChainTracer, trace_chain
+from runcore.sdk.adapters import RunCoreLangChainTracer
 
-# Option A — wrap any LCEL Runnable
-tracer = RunCoreLangChainTracer(agent_name="qa_chain", task="answer question")
-wrapped = tracer.wrap(chain)
-result  = wrapped.invoke({"question": "..."})
-trace   = tracer.get_atir()
+tracer = RunCoreLangChainTracer("qa_chain", task="answer question")
+wrapped = tracer.wrap(chain)               # inject callback automatically
 
-# Option B — context manager
-with trace_chain("support_chain", task="route ticket") as tracer:
-    result = chain.invoke({"input": "..."}, config={"callbacks": [tracer.callback]})
-
+result = wrapped.invoke({"question": "..."})
 trace = tracer.get_atir()
-print(f"CpST: ${trace.aggregates.cost_per_successful_task:.5f}")
-
-# Option C — attach to existing capture() context
-import runcore
-from runcore.sdk.adapters.langchain import RunCoreLangChainCallback
-
-with runcore.capture("my_chain", framework="langchain") as tracer:
-    chain = MyChain(callbacks=[RunCoreLangChainCallback()])
-    result = chain.run("some task")
 ```
 
-Supported events: `on_llm_start/end/error`, `on_tool_start/end/error`, `on_chain_start/end/error`.
+---
 
-Install LangChain support: `pip install runcore[langchain]`
+## Cloud auto-push — one line
 
-All adapters support runtime guards:
+After creating a tenant at your RunCore Cloud instance:
 
 ```python
-from runcore.sdk.guards import GuardConfig
+import runcore
 
-guards = GuardConfig(dedup_scope="session", loop_break_threshold=0.8)
-tracer = RunCoreLangGraphTracer(..., guards=guards)
+runcore.configure(
+    api_key="rc_...",
+    endpoint="https://your-runcore.onrender.com",
+)
+
+# Now every capture() automatically pushes the trace to Cloud
+with runcore.capture("my_agent") as cap:
+    ...
+# → trace pushed in background, never blocks your code
 ```
+
+---
+
+## Metrics
+
+### Cost per Successful Task (CpST)
+
+The primary efficiency signal. Provider-agnostic, comparable across versions.
+
+```
+CpST = total_cost_usd / max(1, successful_tool_calls)
+```
+
+Lower is better. Track it over time to verify that changes actually improve efficiency — not just that they "look faster."
+
+### Loop Risk Score (LRS)
+
+```
+LRS = 0.35 × duplicate_ratio
+    + 0.25 × error_ratio
+    + 0.20 × no_progress_cycle_ratio
+    + 0.20 × cross_turn_repeat_ratio
+
+LRS > 0.20 → warning
+LRS > 0.40 → critical (loop breaker fires if enabled)
+```
+
+---
+
+## ATIR — Agent Trace Intermediate Representation
+
+ATIR v1 is an open standard for agent execution traces. Every RunCore trace is a valid ATIR document — portable, version-controlled, and importable from any source.
+
+```python
+# Export
+trace = cap.get_atir()
+with open("trace.json", "w") as f:
+    json.dump(trace.model_dump(mode="json"), f)
+
+# Import from any source
+from runcore.atir import from_dict, from_anthropic_response, from_openai_response
+trace = from_dict(json.load(open("trace.json")))
+```
+
+ATIR trace structure:
+```json
+{
+  "atir_version": "1.0",
+  "trace_id": "uuid",
+  "agent_name": "support_agent",
+  "task": "process order INV-1001",
+  "started_at": "2026-06-17T10:00:00Z",
+  "success": true,
+  "quality_score": 0.95,
+  "provider": "anthropic",
+  "framework": "langchain",
+  "spans": [
+    {"type": "llm_call", "provider": "anthropic", "model": "claude-haiku-...",
+     "input_tokens": 312, "output_tokens": 87, "cost_usd": 0.000041, ...},
+    {"type": "tool_call", "name": "search_invoice", "success": true,
+     "arguments": {"invoice_id": "INV-1001"}, ...}
+  ],
+  "aggregates": {
+    "total_cost_usd": 0.000041,
+    "total_tokens": 399,
+    "llm_calls": 1,
+    "tool_calls": 1,
+    "cost_per_successful_task": 0.000041
+  }
+}
+```
+
+---
+
+## CLI
+
+```bash
+# Start web dashboard
+runcore serve
+
+# Run benchmark (baseline vs optimized)
+runcore benchmark tasks.json
+
+# Compare providers by CpST
+runcore compare-providers "Process a customer refund"
+
+# Continuous monitoring daemon
+runcore watch --source .runcore/traces/
+
+# Inspect trace files
+runcore atir show trace.json
+runcore atir validate trace.json
+
+# Import from OpenAI/Anthropic response
+runcore import openai_response.json
+```
+
+---
+
+## Web Dashboard
+
+```bash
+pip install runcore
+runcore serve
+# → http://localhost:8000
+```
+
+Features:
+- Live benchmark progress (SSE streaming)
+- Baseline vs optimized cost chart
+- OptimizationAdvisor prescriptions panel
+- Run history with filters
 
 ---
 
@@ -324,36 +316,77 @@ tracer = RunCoreLangGraphTracer(..., guards=guards)
 
 ```
 runcore/
-├── sdk/            3-line capture + auto_instrument() + GuardConfig runtime guards
-├── atir/           ATIR v1 spec, bidirectional converters
-├── advisor/        OptimizationAdvisor — 6 prescription types
-├── monitor/        Continuous monitoring daemon + alerting
-├── benchmark/      Baseline/optimized runner, CpST metrics, provider bench
-├── agents/         Simulated + real LLM agents
-├── context/        ContextCompiler — semantic deduplication
-├── loops/          Loop Risk Score detector
-├── replacement/    Tool→Python replacement detection
-├── server/         FastAPI dashboard with SSE streaming
-└── cli/            Typer CLI
+├── sdk/           → capture(), auto_instrument(), GuardConfig
+│   ├── adapters/  → LangGraph, CrewAI, AutoGen, LangChain
+│   └── cloud.py   → configure(), push_trace()
+├── atir/          → ATIRTrace, LLMSpan, ToolSpan, converters
+├── advisor/       → OptimizationAdvisor, 6 prescription types
+├── loops/         → LoopDetector, LRS formula
+├── monitor/       → MonitorDaemon, alerts (Console/Webhook/Slack)
+├── benchmark/     → BenchmarkRunner, BenchmarkComparison
+├── context/       → ContextCompiler (semantic dedup + compression)
+├── server/        → FastAPI dashboard + Cloud API + Billing
+└── cli/           → Typer CLI (10+ commands)
 ```
 
 ---
 
-## Testing
+## Installation
 
 ```bash
-pip install -e ".[dev]"
-PYTHONPATH=. pytest tests/ -q
-# 238 passed  (79 new adapter tests: LangGraph + CrewAI + AutoGen + LangChain)
+# Core
+pip install runcore
+
+# With Anthropic SDK
+pip install "runcore[anthropic]"
+
+# With OpenAI SDK
+pip install "runcore[openai]"
+
+# With LangChain
+pip install "runcore[langchain]"
+
+# Everything
+pip install "runcore[all]"
 ```
+
+---
+
+## Cloud — hosted RunCore
+
+Deploy your own RunCore Cloud instance (or use a shared one) for team-wide trace storage, dashboards, and billing:
+
+- `POST /cloud/tenants` — create tenant, get API key
+- `POST /cloud/ingest` — upload traces (Bearer API key)
+- `GET /cloud/dashboard` — HTML dashboard with KPIs
+- `GET /cloud/billing/plans` — Free / Team / Enterprise
+
+Deploy in one click on [Render.com](https://render.com) using the included `render.yaml`.
+
+---
+
+## Benchmarks
+
+Tested on a simulated support agent (5 tasks, 10 runs each):
+
+| Metric | Baseline | With RunCore | Change |
+|--------|---------|-------------|--------|
+| CpST | $0.00773 | $0.00060 | **−92%** |
+| Total tokens | 2,402 | 2,020 | −16% |
+| Duplicate calls blocked | — | 10 | — |
+| Loop risk score | 0.41 | 0.03 | −93% |
 
 ---
 
 ## License
 
-Apache 2.0 — see [LICENSE](LICENSE).  
-ATIR v1 specification: Apache 2.0 — free to implement in any language or framework.
+Apache 2.0 — see [LICENSE](LICENSE).
 
 ---
 
-*RunCore is developed by [Saber3D](https://saber3d.pt).*
+## Links
+
+- [PyPI](https://pypi.org/project/runcore/)
+- [ATIR Specification](ATIR_SPEC.md)
+- [Changelog](CHANGELOG.md)
+- [GitHub](https://github.com/ptpaulinho/RunCore)

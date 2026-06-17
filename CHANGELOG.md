@@ -6,6 +6,22 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.8.0] — 2026-06-17
+
+### Added
+
+**Fase 18: Documentation + Developer Experience**
+- `README.md` — complete rewrite: value proposition, comparison table, quickstart, guards, advisor, adapters, cloud push, metrics, ATIR format, CLI reference, architecture, benchmarks
+- `docs/cookbook/01_first_trace.md` — first trace in 60 seconds (no API keys)
+- `docs/cookbook/02_guards.md` — runtime guards: dedup, loop break, context compression
+- `docs/cookbook/03_advisor.md` — OptimizationAdvisor: prescription types, JSON export, HTTP API
+- `docs/cookbook/04_cloud_push.md` — Cloud auto-push setup, env vars, tier limits
+- `docs/cookbook/05_frameworks.md` — all 4 adapters with complete examples
+- `docs/METRICS.md` — CpST, LRS, priority score formulas + ATIR aggregates reference
+- `docs/BUSINESS.md` — business analysis: what you have, what it analyzes, what it improves, how to monetize, GitHub strategy, go-to-market
+
+---
+
 ## [0.7.0] — 2026-06-17
 
 ### Added
