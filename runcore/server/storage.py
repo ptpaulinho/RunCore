@@ -21,7 +21,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-_DB_PATH = Path(".runcore/cloud.db")
+import os as _os
+_DB_PATH = Path(_os.environ.get("RUNCORE_DB_PATH", ".runcore/cloud.db"))
 _lock = threading.Lock()
 
 
