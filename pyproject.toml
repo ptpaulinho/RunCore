@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "runcore"
-version = "0.2.0"
+version = "0.3.0"
 description = "AI Agent Runtime Optimization Engine — measure, analyze, and optimize any LLM agent"
 readme = "README.md"
 license = { text = "Apache-2.0" }
@@ -50,11 +50,11 @@ dev       = [
 ]
 
 [project.urls]
-Homepage      = "https://github.com/runcore-ai/runcore"
-Documentation = "https://github.com/runcore-ai/runcore#readme"
-Repository    = "https://github.com/runcore-ai/runcore"
-"Bug Tracker" = "https://github.com/runcore-ai/runcore/issues"
-"ATIR Spec"   = "https://github.com/runcore-ai/runcore/blob/main/ATIR_SPEC.md"
+Homepage      = "https://github.com/ptpaulinho/RunCore"
+Documentation = "https://github.com/ptpaulinho/RunCore#readme"
+Repository    = "https://github.com/ptpaulinho/RunCore"
+"Bug Tracker" = "https://github.com/ptpaulinho/RunCore/issues"
+"ATIR Spec"   = "https://github.com/ptpaulinho/RunCore/blob/main/ATIR_SPEC.md"
 
 [project.scripts]
 runcore = "runcore.cli.main:app"

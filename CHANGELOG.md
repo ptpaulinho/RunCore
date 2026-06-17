@@ -6,6 +6,25 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.3.0] — 2026-06-17
+
+### Added
+
+**Ecosystem Adapters (`runcore.sdk.adapters`)**
+- `RunCoreLangGraphTracer` — wraps any compiled LangGraph with zero code changes via `tracer.wrap(graph.compile())`; records every node execution and LLM call as ATIR spans; supports async `ainvoke`
+- `RunCoreLangGraphCallback` — alternative LangChain-style callback for `graph.compile(callbacks=[...])`
+- `RunCoreCrewCallback` — full CrewAI lifecycle hooks (`on_task_start/end`, `on_tool_start/end/error`, `on_llm_start/end/error`, `on_crew_end/error`); LangChain LLMResult token extraction
+- `trace_crew()` — context manager shorthand for tracing `crew.kickoff()` calls
+- `RunCoreAutoGenTracer` — traces AutoGen `ConversableAgent.initiate_chat()` conversations; records message exchanges, function/tool calls, and LLM usage from AutoGen's cost tracking
+- `_WrappedAutoGenAgent` — transparent proxy intercepting `generate_reply()` and `execute_function()` per agent
+- All adapters support runtime `GuardConfig` guards for dedup blocking and loop detection
+- `runcore.sdk.adapters.__init__` now exports all adapter classes
+
+**Tests**
+- `tests/unit/test_adapters.py` — 44 tests covering all three adapters: context manager lifecycle, span recording, error paths, async invoke, guards integration, quality scores, no-capture safety
+
+---
+
 ## [0.2.0] — 2026-06-17
 
 ### Added

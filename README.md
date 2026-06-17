@@ -2,7 +2,7 @@
 
 **AI Agent Runtime Optimization Engine**
 
-[![CI](https://github.com/runcore-ai/runcore/actions/workflows/ci.yml/badge.svg)](https://github.com/runcore-ai/runcore/actions)
+[![CI](https://github.com/ptpaulinho/RunCore/actions/workflows/ci.yml/badge.svg)](https://github.com/ptpaulinho/RunCore/actions)
 [![PyPI](https://img.shields.io/pypi/v/runcore)](https://pypi.org/project/runcore/)
 [![Python](https://img.shields.io/pypi/pyversions/runcore)](https://pypi.org/project/runcore/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
@@ -237,6 +237,56 @@ runcore instrument <script.py>  Auto-instrument and run a Python script
 
 ---
 
+## Ecosystem Adapters
+
+RunCore integrates natively with the three leading agent frameworks. No changes to your existing code are required — wrap once, get full ATIR traces.
+
+### LangGraph
+
+```python
+from runcore.sdk.adapters.langgraph import RunCoreLangGraphTracer
+
+tracer = RunCoreLangGraphTracer(agent_name="my_graph", task="process order")
+app = tracer.wrap(graph.compile())          # transparent proxy
+result = app.invoke({"messages": [...]})    # all nodes recorded automatically
+
+trace = tracer.get_atir()
+print(f"CpST: ${trace.aggregates.cost_per_successful_task:.5f}")
+```
+
+### CrewAI
+
+```python
+from runcore.sdk.adapters.crewai import trace_crew
+
+with trace_crew("support_crew", task="handle tickets") as tracer:
+    result = crew.kickoff()
+
+trace = tracer.get_atir()
+```
+
+### AutoGen
+
+```python
+from runcore.sdk.adapters.autogen import RunCoreAutoGenTracer
+
+tracer = RunCoreAutoGenTracer(agent_name="autogen_agent", task="code review")
+result = tracer.initiate_chat(user_proxy, assistant, message="Review this PR")
+
+trace = tracer.get_atir()
+```
+
+All adapters support runtime guards:
+
+```python
+from runcore.sdk.guards import GuardConfig
+
+guards = GuardConfig(dedup_scope="session", loop_break_threshold=0.8)
+tracer = RunCoreLangGraphTracer(..., guards=guards)
+```
+
+---
+
 ## Architecture
 
 ```
@@ -261,7 +311,7 @@ runcore/
 ```bash
 pip install -e ".[dev]"
 PYTHONPATH=. pytest tests/ -q
-# 139 passed
+# 183 passed  (44 new adapter tests)
 ```
 
 ---
