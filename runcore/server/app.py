@@ -2297,12 +2297,122 @@ def _cpst_from_cert(cert: dict) -> float | None:
     return None
 
 
+@app.get("/start", response_class=HTMLResponse)
+def start_page() -> str:
+    """Onboarding page for new users — 3 steps to first certification."""
+    return f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RunCore — Get Started</title>
+<style>{_DESIGN_CSS}
+.steps {{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;margin:40px 0}}
+.step {{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:32px;position:relative}}
+.step-num {{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;background:var(--accent);color:#fff;font-weight:700;border-radius:50%;margin-bottom:16px;font-size:1rem}}
+.step h3 {{font-size:1.1rem;font-weight:700;margin:0 0 10px;color:var(--text)}}
+.step p {{color:var(--text2);font-size:.9rem;line-height:1.6;margin:0 0 16px}}
+.code-block {{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-family:monospace;font-size:.82rem;color:#e6edf3;overflow-x:auto;margin:8px 0}}
+.hero {{text-align:center;padding:60px 0 40px}}
+.hero h1 {{font-size:2.2rem;font-weight:800;margin:0 0 12px}}
+.hero p {{color:var(--text2);font-size:1.05rem;max-width:560px;margin:0 auto 32px}}
+.providers {{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}}
+.provider-chip {{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:.8rem;color:var(--text2)}}
+.cta {{display:inline-block;background:linear-gradient(135deg,#5577f3,#4a6cf5);color:#fff;text-decoration:none;font-weight:600;padding:12px 28px;border-radius:10px;font-size:.95rem;margin-top:8px}}
+</style></head><body>
+<nav class="nav">
+  <div class="nav-brand">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    <span>RunCore</span>
+  </div>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Dashboard</a>
+    <a href="/certification" class="nav-link">Certification</a>
+    <a href="/leaderboard" class="nav-link">Leaderboard</a>
+    <a href="/pricing" class="nav-link">Pricing</a>
+  </div>
+</nav>
+<main class="container" style="max-width:960px">
+  <div class="hero">
+    <h1>Certify your AI agent in 3 steps</h1>
+    <p>RunCore Score™ measures real efficiency — cost savings, token reduction, and task success — against a reproducible open benchmark.</p>
+    <a href="/leaderboard" class="cta">View the leaderboard →</a>
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <h3>Install RunCore</h3>
+      <p>Requires Python 3.10+ and a free API key from Groq or Ollama running locally.</p>
+      <div class="code-block">pip install runcore</div>
+      <div class="providers">
+        <span class="provider-chip">🆓 Groq (free)</span>
+        <span class="provider-chip">🏠 Ollama (local)</span>
+        <span class="provider-chip">🔑 Gemini (free tier)</span>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <h3>Set your API key</h3>
+      <p>Get a free Groq key at <strong>console.groq.com</strong> — no credit card needed.</p>
+      <div class="code-block">export GROQ_API_KEY=your_key_here</div>
+      <p style="margin-top:12px">Or use Ollama locally — no key needed:</p>
+      <div class="code-block">ollama pull qwen2.5:7b</div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <h3>Run certification</h3>
+      <p>Takes ~5 minutes. Produces a signed HTML report with RunCore Score™ and SHA-256 fingerprint.</p>
+      <div class="code-block">runcore certify \\<br>  --provider groq \\<br>  --model llama-3.3-70b-versatile \\<br>  --suite support</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin:40px 0;padding:32px">
+    <h2 style="margin:0 0 8px;font-size:1.3rem">What you get</h2>
+    <p style="color:var(--text2);margin:0 0 24px">Every certification produces a tamper-evident report you can share, embed, or submit to the public leaderboard.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px">
+      <div style="background:var(--surface);border-radius:10px;padding:18px">
+        <div style="font-size:1.5rem;margin-bottom:6px">📊</div>
+        <div style="font-weight:600;margin-bottom:4px">RunCore Score™</div>
+        <div style="color:var(--text2);font-size:.85rem">0–100 score across cost, tokens, and task success</div>
+      </div>
+      <div style="background:var(--surface);border-radius:10px;padding:18px">
+        <div style="font-size:1.5rem;margin-bottom:6px">🔒</div>
+        <div style="font-weight:600;margin-bottom:4px">SHA-256 fingerprint</div>
+        <div style="color:var(--text2);font-size:.85rem">Tamper-evident — anyone can verify your result</div>
+      </div>
+      <div style="background:var(--surface);border-radius:10px;padding:18px">
+        <div style="font-size:1.5rem;margin-bottom:6px">🏅</div>
+        <div style="font-weight:600;margin-bottom:4px">Embeddable badge</div>
+        <div style="color:var(--text2);font-size:.85rem">Add to your README or docs</div>
+      </div>
+      <div style="background:var(--surface);border-radius:10px;padding:18px">
+        <div style="font-size:1.5rem;margin-bottom:6px">📋</div>
+        <div style="font-weight:600;margin-bottom:4px">Open methodology</div>
+        <div style="color:var(--text2);font-size:.85rem">Every formula is public — no black box</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin:0 0 60px;padding:32px;border:1px solid var(--accent)44">
+    <h2 style="margin:0 0 8px;font-size:1.3rem">Submit to the leaderboard</h2>
+    <p style="color:var(--text2);margin:0 0 20px">After certification, your SHA-256 fingerprinted report can be submitted publicly. Email your report JSON to <strong>ppereira@saber3d.pt</strong> or open a PR to the RunCore repo.</p>
+    <a href="https://github.com/ptpaulinho/RunCore" style="color:var(--accent);text-decoration:none;font-weight:600">GitHub: ptpaulinho/RunCore →</a>
+  </div>
+</main>
+</body></html>"""
+
+
 @app.get("/leaderboard", response_class=HTMLResponse)
 def leaderboard_page() -> str:
     """Public efficiency leaderboard — agents ranked by RunCore Score™."""
     certs = _load_cert_history()
-    # Rank by overall score, best first
-    ranked = sorted(certs, key=lambda c: c.get("overall", 0), reverse=True)
+    # Keep only best result per (provider, model) pair
+    best: dict[str, dict] = {}
+    for c in certs:
+        key = f"{c.get('provider','')}/{c.get('model','')}"
+        if key not in best or c.get("overall", 0) > best[key].get("overall", 0):
+            best[key] = c
+    ranked = sorted(best.values(), key=lambda c: c.get("overall", 0), reverse=True)
 
     def _grade_color(grade: str) -> str:
         return {"A+": "#22c55e", "A": "#22c55e", "B+": "#60a5fa", "B": "#6488f5",
