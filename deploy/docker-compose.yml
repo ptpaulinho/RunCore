@@ -1,0 +1,59 @@
+# RunCore — production stack for an AWS EC2 VM.
+#
+#   - app:   the RunCore dashboard/API (gunicorn-free; uvicorn via serve.py)
+#   - caddy: reverse proxy with automatic HTTPS (Let's Encrypt)
+#
+# SQLite lives on a persistent host directory (mount your EBS volume at ./data
+# or change the bind path below). See docs/AWS_MIGRATION.md.
+#
+# Usage:
+#   cp deploy/.env.example deploy/.env   # then edit
+#   docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: runcore:latest
+    restart: unless-stopped
+    expose:
+      - "8765"
+    environment:
+      RUNCORE_ENV: production
+      PORT: "8765"
+      RUNCORE_DB_PATH: /data/cloud.db
+      RUNCORE_PUBLIC_URL: ${RUNCORE_PUBLIC_URL:-https://localhost}
+      # Email (optional — leave unset to disable sending)
+      RUNCORE_SMTP_HOST: ${RUNCORE_SMTP_HOST:-}
+      RUNCORE_SMTP_PORT: ${RUNCORE_SMTP_PORT:-587}
+      RUNCORE_SMTP_USER: ${RUNCORE_SMTP_USER:-}
+      RUNCORE_SMTP_PASS: ${RUNCORE_SMTP_PASS:-}
+      RUNCORE_SMTP_FROM: ${RUNCORE_SMTP_FROM:-}
+      RUNCORE_SMTP_TLS: ${RUNCORE_SMTP_TLS:-1}
+      # Optional admin token for /cloud/tenants management endpoints
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+    volumes:
+      # Persistent SQLite DB + saved certification reports (mount EBS here)
+      - ./data:/data
+      - runcore_results:/app/benchmarks/results
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      RUNCORE_DOMAIN: ${RUNCORE_DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  runcore_results:
+  caddy_data:
+  caddy_config:

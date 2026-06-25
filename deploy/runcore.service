@@ -1,0 +1,29 @@
+# systemd unit for running RunCore WITHOUT Docker (bare Python on the VM).
+# Use this only if you prefer not to use docker-compose. Most users should use
+# the docker-compose stack (which also gives you Caddy/HTTPS).
+#
+# Install:
+#   sudo cp deploy/runcore.service /etc/systemd/system/runcore.service
+#   sudo systemctl daemon-reload && sudo systemctl enable --now runcore
+#
+# Then put Caddy/nginx in front for TLS, or run behind an ALB.
+
+[Unit]
+Description=RunCore dashboard/API
+After=network.target
+
+[Service]
+Type=simple
+User=runcore
+WorkingDirectory=/opt/runcore
+Environment=RUNCORE_ENV=production
+Environment=PORT=8765
+Environment=RUNCORE_DB_PATH=/data/cloud.db
+# Load the rest (SMTP, PUBLIC_URL, etc.) from an env file:
+EnvironmentFile=-/opt/runcore/deploy/.env
+ExecStart=/opt/runcore/.venv/bin/python serve.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

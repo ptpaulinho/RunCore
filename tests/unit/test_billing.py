@@ -102,7 +102,7 @@ class TestTierLimits:
         lim = get_limits("team")
         assert lim.traces_per_month == 10_000
         assert lim.retention_days == 30
-        assert lim.price_usd_month == 49.0
+        assert lim.price_usd_month == 99.0
 
     def test_enterprise_unlimited(self):
         from runcore.server.billing import get_limits
@@ -298,8 +298,8 @@ class TestBillingEndpoints:
         assert "Free" in resp.text
         assert "Team" in resp.text
         assert "Enterprise" in resp.text
-        assert "$49" in resp.text
-        assert "$299" in resp.text
+        assert "$99" in resp.text
+        assert "$499" in resp.text
 
     def test_checkout_dev_mode(self, client, free_tenant):
         """Without Stripe keys, checkout returns a dev URL."""

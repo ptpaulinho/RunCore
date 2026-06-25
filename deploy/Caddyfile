@@ -1,0 +1,12 @@
+# Caddy reverse proxy with automatic HTTPS.
+# {$RUNCORE_DOMAIN} comes from the environment (set in deploy/.env).
+#
+# For a real domain (e.g. runcore.io), Caddy fetches a Let's Encrypt cert
+# automatically — just point the domain's A record at the EC2 public IP.
+#
+# For local testing without a domain, set RUNCORE_DOMAIN=:80 to serve plain HTTP.
+
+{$RUNCORE_DOMAIN} {
+	encode gzip
+	reverse_proxy app:8765
+}

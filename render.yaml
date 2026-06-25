@@ -11,3 +11,8 @@ services:
         value: production
       - key: RUNCORE_DB_PATH
         value: /tmp/cloud.db
+      - key: RUNCORE_PUBLIC_URL
+        value: https://runcore.onrender.com
+      # Email is optional — set these in the Render dashboard to enable it:
+      #   RUNCORE_SMTP_HOST, RUNCORE_SMTP_PORT, RUNCORE_SMTP_USER,
+      #   RUNCORE_SMTP_PASS, RUNCORE_SMTP_FROM, RUNCORE_SMTP_TLS

@@ -3227,7 +3227,9 @@ def _get_tenant(session: str | None = Cookie(default=None)) -> dict | None:
     return _store.get_session(session)
 
 
-def _require_tenant(session: str | None = Cookie(default=None)) -> dict:
+def _require_session_tenant(session: str | None = Cookie(default=None)) -> dict:
+    """Cookie/session auth for dashboard routes (distinct from the Bearer-key
+    _require_tenant used by /cloud/* API endpoints)."""
     tenant = _get_tenant(session)
     if not tenant:
         raise HTTPException(status_code=302, headers={"Location": "/login"})
@@ -3344,6 +3346,109 @@ def logout(session: str | None = Cookie(default=None)):
 # Company dashboard — isolated per tenant
 # ---------------------------------------------------------------------------
 
+# ===========================================================================
+# Company certification jobs — background runner + status polling
+# ===========================================================================
+
+_cert_jobs: dict[str, dict] = {}
+_cert_jobs_lock = threading.Lock()
+_cert_env_lock = threading.Lock()   # serialize env-var mutation across concurrent runs
+
+_PROVIDER_ENV = {"groq": "GROQ_API_KEY", "gemini": "GEMINI_API_KEY", "ollama": "OLLAMA_HOST"}
+
+
+def _set_job(job_id: str, **fields) -> None:
+    with _cert_jobs_lock:
+        job = _cert_jobs.setdefault(job_id, {})
+        job.update(fields)
+
+
+def _get_job(job_id: str) -> dict | None:
+    with _cert_jobs_lock:
+        job = _cert_jobs.get(job_id)
+        return dict(job) if job else None
+
+
+def _run_cert_job(job_id: str, tenant: dict, cfg: dict) -> None:
+    """Execute a certification in a worker thread, persist it, and email the result."""
+    import os
+    from benchmarks.certification import run_certification, save_cert
+
+    company = tenant.get("company_name") or tenant.get("name", "Your Company")
+    provider = cfg["provider"]
+    provider_kwargs = cfg.get("provider_kwargs") or {}
+    try:
+        _set_job(job_id, status="running", message="Running benchmark tasks…")
+
+        # Apply this tenant's saved provider key to the env for the duration of the
+        # run (serialized so concurrent tenants don't clobber each other's keys).
+        with _cert_env_lock:
+            env_var = _PROVIDER_ENV.get(provider)
+            had_prev, prev = False, None
+            if env_var:
+                key = _store.get_tenant_keys(tenant["id"]).get(provider)
+                if key:
+                    had_prev = env_var in os.environ
+                    prev = os.environ.get(env_var)
+                    os.environ[env_var] = key
+            try:
+                score = run_certification(
+                    provider_name=provider,
+                    model=cfg.get("model"),
+                    runs_per_task=int(cfg.get("runs", 5)),
+                    suite=cfg.get("suite", "support"),
+                    verbose=False,
+                    provider_kwargs=provider_kwargs,
+                )
+            finally:
+                if env_var:
+                    if had_prev:
+                        os.environ[env_var] = prev
+                    else:
+                        os.environ.pop(env_var, None)
+
+        out = save_cert(score)
+        report_html = out.read_text(encoding="utf-8")
+        cert_dict = {
+            "overall": score.overall,
+            "grade": score.grade,
+            "certified": score.certified,
+            "provider": score.provider,
+            "model": score.model,
+            "suite": score.suite,
+            "n_runs": score.n_runs,
+            "timestamp": score.timestamp,
+            "product_name": cfg.get("product_name", ""),
+            "dimensions": [
+                {"name": d.name, "score": d.score, "improvement_pct": d.improvement_pct, "passed": d.passed}
+                for d in score.dimensions
+            ],
+        }
+        cert_id = _store.save_certification(
+            tenant["id"], cert_dict, html_file=out.name,
+            product_name=cfg.get("product_name", ""), cert_type=cfg.get("cert_type", "model"),
+        )
+
+        emailed = False
+        try:
+            from runcore.server import email_send
+            emailed = email_send.send_certification_email(
+                tenant.get("email", ""), company, cert_dict,
+                report_html=report_html,
+                label=cfg.get("product_name") or f"{score.provider} / {score.model}",
+            )
+        except Exception:
+            emailed = False
+
+        _set_job(
+            job_id, status="done", cert_id=cert_id, score=cert_dict, emailed=emailed,
+            report_url=f"/app/certify/report/{cert_id}",
+            message="Certification complete",
+        )
+    except Exception as exc:  # noqa: BLE001
+        _set_job(job_id, status="error", message=f"{type(exc).__name__}: {exc}")
+
+
 @app.get("/app/dashboard", response_class=HTMLResponse)
 def company_dashboard(session: str | None = Cookie(default=None)):
     tenant = _get_tenant(session)
@@ -3362,16 +3467,39 @@ def company_dashboard(session: str | None = Cookie(default=None)):
             grade = c.get("grade", "?")
             col = grade_colors.get(grade, "#94a3b8")
             cert_chip = '<span style="color:#22c55e;font-size:.75rem;font-weight:600">✓ Certified</span>' if c.get("certified") else '<span style="color:#94a3b8;font-size:.75rem">not certified</span>'
-            report_link = f'<a href="/certification/reports/{c.get("html_file","")}" style="color:var(--accent);font-size:.8rem">view →</a>' if c.get("html_file") else "—"
+            cid = c.get("id", "")
+            if cid:
+                report_link = (f'<a href="/app/certify/report/{cid}" target="_blank" style="color:var(--accent);font-size:.8rem">view</a> '
+                               f'<a href="/app/certify/report/{cid}/download" style="color:var(--muted);font-size:.8rem">↓</a>')
+            else:
+                report_link = "—"
+            subject = c.get("product_name") or c.get("model", "?")
+            type_chip = ('<span style="font-size:.65rem;color:#a78bfa;border:1px solid #a78bfa55;border-radius:4px;padding:1px 5px;margin-left:6px">agent</span>'
+                         if c.get("cert_type") == "agent" else "")
             cert_rows += f"""<tr>
               <td><span style="background:{col};color:#06101f;font-weight:700;font-size:.8rem;padding:2px 8px;border-radius:5px">{grade}</span></td>
               <td style="font-weight:700">{c.get('score',0):.1f}</td>
               <td>{c.get('provider','?')}</td>
-              <td style="font-size:.85rem">{c.get('model','?')}</td>
+              <td style="font-size:.85rem">{subject}{type_chip}</td>
               <td style="font-size:.82rem">{c.get('suite','?')}</td>
               <td>{cert_chip}</td>
               <td>{report_link}</td>
             </tr>"""
+
+    # Badge embed snippet for the most recent certified result
+    best = next((c for c in certs if c.get("certified")), None)
+    badge_card = ""
+    if best:
+        g = best.get("grade", "B").replace("+", "plus")
+        badge_url = f"/badge/{g}.svg"
+        md = f"[![RunCore Certified]({badge_url})](/leaderboard)"
+        badge_card = f"""
+  <div class="card" style="margin-top:24px;padding:28px">
+    <h2 style="margin:0 0 8px;font-size:1rem;font-weight:700">Your Certification Badge</h2>
+    <p style="color:var(--text2);font-size:.85rem;margin:0 0 14px">Embed this in your README or site to show your RunCore grade:</p>
+    <div style="margin-bottom:12px"><img src="{badge_url}" alt="RunCore badge" style="height:24px"></div>
+    <div style="background:#0d1117;border-radius:8px;padding:12px 14px;font-family:monospace;font-size:.78rem;color:#e6edf3;word-break:break-all">{md}</div>
+  </div>"""
 
     return f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -3410,14 +3538,14 @@ tr:hover td{{background:var(--surface)}}
       <span style="color:var(--muted);font-size:.82rem">{len(certs)} run{"s" if len(certs)!=1 else ""}</span>
     </div>
     <table>
-      <thead><tr><th>Grade</th><th>Score</th><th>Provider</th><th>Model</th><th>Suite</th><th>Status</th><th>Report</th></tr></thead>
+      <thead><tr><th>Grade</th><th>Score</th><th>Provider</th><th>Subject</th><th>Suite</th><th>Status</th><th>Report</th></tr></thead>
       <tbody>{cert_rows}</tbody>
     </table>
   </div>
-
+{badge_card}
   <div class="card" style="margin-top:24px;padding:28px">
-    <h2 style="margin:0 0 8px;font-size:1rem;font-weight:700">Quick Certify via CLI</h2>
-    <p style="color:var(--text2);font-size:.85rem;margin:0 0 14px">Install RunCore and run a certification from your terminal:</p>
+    <h2 style="margin:0 0 8px;font-size:1rem;font-weight:700">Prefer the terminal?</h2>
+    <p style="color:var(--text2);font-size:.85rem;margin:0 0 14px">You can also certify from the CLI:</p>
     <div style="background:#0d1117;border-radius:8px;padding:14px 16px;font-family:monospace;font-size:.82rem;color:#e6edf3">
       pip install runcore<br>
       export GROQ_API_KEY=your_key<br>
@@ -3429,11 +3557,25 @@ tr:hover td{{background:var(--surface)}}
 
 
 @app.get("/app/settings", response_class=HTMLResponse)
-def company_settings(session: str | None = Cookie(default=None)):
+def company_settings(saved: str = "", session: str | None = Cookie(default=None)):
     tenant = _get_tenant(session)
     if not tenant:
         return RedirectResponse("/login", status_code=303)
     company = tenant.get("company_name") or tenant.get("name", "Your Company")
+    tkeys = _store.get_tenant_keys(tenant["id"])
+
+    def _key_status(provider: str, env_name: str) -> str:
+        val = tkeys.get(provider, "")
+        if val:
+            masked = "••••" + val[-4:] if len(val) > 4 else "••••"
+            return f'<span style="color:#22c55e;font-size:.78rem">✓ saved ({masked})</span>'
+        return '<span style="color:var(--muted);font-size:.78rem">not set</span>'
+
+    groq_status = _key_status("groq", "GROQ_API_KEY")
+    gemini_status = _key_status("gemini", "GEMINI_API_KEY")
+    saved_banner = ('<div style="background:#22c55e22;border:1px solid #22c55e55;color:#22c55e;'
+                    'border-radius:8px;padding:10px 14px;margin-bottom:20px;font-size:.85rem">✓ Keys saved.</div>'
+                    if saved else "")
     return f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>RunCore — Settings</title>
@@ -3456,7 +3598,7 @@ def company_settings(session: str | None = Cookie(default=None)):
 </nav>
 <main class="container" style="max-width:700px;padding-top:40px">
   <h1 style="margin:0 0 32px;font-size:1.6rem">Account Settings</h1>
-
+  {saved_banner}
   <div class="card" style="padding:28px;margin-bottom:24px">
     <h2 style="margin:0 0 20px;font-size:1rem;font-weight:700">Company</h2>
     <div class="form-group"><label>Company name</label><input type="text" value="{company}" readonly></div>
@@ -3474,10 +3616,10 @@ def company_settings(session: str | None = Cookie(default=None)):
 
   <div class="card" style="padding:28px">
     <h2 style="margin:0 0 8px;font-size:1rem;font-weight:700">LLM Provider Keys</h2>
-    <p style="color:var(--text2);font-size:.85rem;margin:0 0 14px">Add your own Groq or Gemini keys to run certifications from the dashboard.</p>
+    <p style="color:var(--text2);font-size:.85rem;margin:0 0 14px">Add your own Groq or Gemini keys to run certifications from the dashboard — no terminal needed. Keys are stored privately against your company. Leave a field blank to keep the current key, or enter <code>-</code> to remove it.</p>
     <form method="post" action="/app/settings/keys">
-      <div class="form-group"><label>Groq API Key</label><input type="password" name="groq_key" placeholder="gsk_…"></div>
-      <div class="form-group"><label>Gemini API Key</label><input type="password" name="gemini_key" placeholder="AIza…"></div>
+      <div class="form-group"><label>Groq API Key &nbsp; {groq_status}</label><input type="password" name="groq_key" placeholder="gsk_… (free at console.groq.com)"></div>
+      <div class="form-group"><label>Gemini API Key &nbsp; {gemini_status}</label><input type="password" name="gemini_key" placeholder="AIza…"></div>
       <button class="btn" type="submit">Save keys</button>
     </form>
   </div>
@@ -3494,13 +3636,16 @@ def save_company_keys(
     tenant = _get_tenant(session)
     if not tenant:
         return RedirectResponse("/login", status_code=303)
-    keys = {}
-    if groq_key.strip():
-        keys["GROQ_API_KEY"] = groq_key.strip()
-    if gemini_key.strip():
-        keys["GEMINI_API_KEY"] = gemini_key.strip()
-    if keys:
-        _config.set_keys(keys)
+    # Per-tenant isolation: each company's keys are stored against their tenant id.
+    # A blank field leaves an existing key untouched; "-" clears it.
+    if groq_key.strip() == "-":
+        _store.set_tenant_key(tenant["id"], "groq", "")
+    elif groq_key.strip():
+        _store.set_tenant_key(tenant["id"], "groq", groq_key.strip())
+    if gemini_key.strip() == "-":
+        _store.set_tenant_key(tenant["id"], "gemini", "")
+    elif gemini_key.strip():
+        _store.set_tenant_key(tenant["id"], "gemini", gemini_key.strip())
     return RedirectResponse("/app/settings?saved=1", status_code=303)
 
 
@@ -3510,14 +3655,26 @@ def company_certify_page(session: str | None = Cookie(default=None)):
     if not tenant:
         return RedirectResponse("/login", status_code=303)
     company = tenant.get("company_name") or tenant.get("name", "")
+    tkeys = _store.get_tenant_keys(tenant["id"])
+    has_groq = "groq" in tkeys
+    groq_warn = "" if has_groq else (
+        '<div style="background:#f59e0b22;border:1px solid #f59e0b55;color:#f59e0b;border-radius:8px;'
+        'padding:10px 14px;margin-bottom:20px;font-size:.84rem">⚠️ No Groq key saved. '
+        'Add one in <a href="/app/settings" style="color:#f59e0b;text-decoration:underline">Settings</a> '
+        'to certify a Groq model from here (free at console.groq.com).</div>')
     return f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>RunCore — Run Certification</title>
 <style>{_DESIGN_CSS}
 .form-group{{margin-bottom:20px}}
 .form-group label{{display:block;font-size:.82rem;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}}
-.form-group select,.form-group input{{width:100%;max-width:400px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:.9rem;box-sizing:border-box}}
+.form-group select,.form-group input{{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:.9rem;box-sizing:border-box}}
 .btn{{background:linear-gradient(135deg,#5577f3,#4a6cf5);color:#fff;border:none;border-radius:8px;padding:12px 28px;font-size:.95rem;font-weight:600;cursor:pointer}}
+.btn:disabled{{opacity:.55;cursor:not-allowed}}
+.tabs{{display:flex;gap:8px;margin-bottom:24px}}
+.tab{{flex:1;text-align:center;padding:12px;border:1px solid var(--border);border-radius:10px;cursor:pointer;font-size:.88rem;font-weight:600;color:var(--text2);background:var(--surface)}}
+.tab.active{{border-color:#5577f3;color:#fff;background:#5577f322}}
+.hint{{font-size:.8rem;color:var(--muted);margin-top:-12px;margin-bottom:18px}}
 </style></head><body>
 <nav class="nav">
   <div class="nav-brand">
@@ -3526,32 +3683,59 @@ def company_certify_page(session: str | None = Cookie(default=None)):
   </div>
   <div class="nav-links">
     <a href="/app/dashboard" class="nav-link">{company}</a>
+    <a href="/app/settings" class="nav-link">Settings</a>
     <a href="/logout" class="nav-link" style="color:#ef4444">Sign out</a>
   </div>
 </nav>
 <main class="container" style="max-width:600px;padding-top:40px">
   <h1 style="margin:0 0 8px;font-size:1.6rem">Run Certification</h1>
-  <p style="color:var(--text2);margin:0 0 32px">Measures your agent efficiency against the RunCore Score™ open benchmark.</p>
+  <p style="color:var(--text2);margin:0 0 28px">Measures efficiency against the RunCore Score™ open benchmark. Runs in the cloud — no terminal needed.</p>
+
+  <div class="tabs">
+    <div class="tab active" id="tab-model" onclick="setMode('model')">Certify a model</div>
+    <div class="tab" id="tab-agent" onclick="setMode('agent')">Bring your own agent</div>
+  </div>
 
   <div class="card" style="padding:32px">
-    <div style="background:var(--surface);border-radius:10px;padding:14px 18px;margin-bottom:28px;font-size:.85rem;color:var(--text2)">
-      ⚠️ Certification runs real LLM calls against your API key. Takes 5–15 min depending on provider and suite.
-    </div>
+    {groq_warn}
     <div class="form-group">
-      <label>Provider</label>
-      <select id="provider" onchange="updateModels()">
-        <option value="groq">Groq (free)</option>
-        <option value="ollama">Ollama (local)</option>
-      </select>
+      <label>Product / Agent name</label>
+      <input id="product" type="text" placeholder="e.g. Acme Support Agent v2">
+      <div class="hint">Shown on your certificate and (optionally) the leaderboard.</div>
     </div>
-    <div class="form-group">
-      <label>Model</label>
-      <select id="model">
-        <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile (recommended)</option>
-        <option value="llama-3.1-8b-instant">llama-3.1-8b-instant (fast)</option>
-        <option value="mixtral-8x7b-32768">mixtral-8x7b-32768</option>
-      </select>
+
+    <!-- MODEL MODE -->
+    <div id="mode-model">
+      <div class="form-group">
+        <label>Provider</label>
+        <select id="provider" onchange="updateModels()">
+          <option value="groq">Groq (free, cloud)</option>
+          <option value="ollama">Ollama (local)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Model</label>
+        <select id="model"></select>
+      </div>
     </div>
+
+    <!-- AGENT MODE -->
+    <div id="mode-agent" style="display:none">
+      <div class="form-group">
+        <label>Agent endpoint (OpenAI-compatible)</label>
+        <input id="agent_url" type="text" placeholder="https://your-agent.example.com/v1">
+        <div class="hint">RunCore POSTs benchmark tasks to {{endpoint}}/chat/completions and measures your real agent.</div>
+      </div>
+      <div class="form-group">
+        <label>API key / bearer token (optional)</label>
+        <input id="agent_key" type="password" placeholder="sk-… (sent as Authorization: Bearer)">
+      </div>
+      <div class="form-group">
+        <label>Model identifier your endpoint expects</label>
+        <input id="agent_model" type="text" placeholder="e.g. gpt-4o-mini or your-deployment-name" value="agent">
+      </div>
+    </div>
+
     <div class="form-group">
       <label>Suite</label>
       <select id="suite">
@@ -3569,19 +3753,20 @@ def company_certify_page(session: str | None = Cookie(default=None)):
         <option value="10">10 runs (enterprise)</option>
       </select>
     </div>
-    <div style="margin-top:8px;font-size:.82rem;color:var(--muted)" id="est">Estimated: ~5 min · 30 LLM calls</div>
-    <button class="btn" style="margin-top:24px;width:100%" onclick="startCert()">Start Certification →</button>
+    <button class="btn" id="go" style="margin-top:8px;width:100%" onclick="startCert()">Start Certification →</button>
   </div>
 
   <div id="status-box" style="display:none;margin-top:24px">
-    <div class="card" style="padding:24px;text-align:center">
-      <div style="font-size:1.5rem;margin-bottom:8px">⏳</div>
+    <div class="card" style="padding:28px;text-align:center">
+      <div id="spin" style="font-size:1.6rem;margin-bottom:10px">⏳</div>
       <div id="status-msg" style="font-weight:600">Starting certification…</div>
-      <div style="color:var(--muted);font-size:.85rem;margin-top:6px">Do not close this window</div>
+      <div id="status-sub" style="color:var(--muted);font-size:.85rem;margin-top:6px">This runs real LLM calls and can take 5–15 min. You can keep this tab open.</div>
+      <div id="result" style="display:none;margin-top:18px"></div>
     </div>
   </div>
 </main>
 <script>
+let mode = "model";
 const groqModels = ["llama-3.3-70b-versatile","llama-3.1-8b-instant","mixtral-8x7b-32768","gemma2-9b-it"];
 const ollamaModels = ["qwen2.5:14b","qwen2.5:7b","llama3.1:8b","llama3.2"];
 function updateModels() {{
@@ -3590,30 +3775,168 @@ function updateModels() {{
   const models = p === "groq" ? groqModels : ollamaModels;
   sel.innerHTML = models.map((m,i) => `<option value="${{m}}">${{m}}${{i===0?" (recommended)":""}}</option>`).join("");
 }}
+function setMode(m) {{
+  mode = m;
+  document.getElementById("tab-model").classList.toggle("active", m==="model");
+  document.getElementById("tab-agent").classList.toggle("active", m==="agent");
+  document.getElementById("mode-model").style.display = m==="model" ? "block" : "none";
+  document.getElementById("mode-agent").style.display = m==="agent" ? "block" : "none";
+}}
+updateModels();
+function poll(jobId) {{
+  fetch("/app/certify/status/" + jobId).then(r => r.json()).then(d => {{
+    if (d.status === "running") {{
+      document.getElementById("status-msg").textContent = d.message || "Running benchmark tasks…";
+      setTimeout(() => poll(jobId), 3000);
+    }} else if (d.status === "done") {{
+      const s = d.score || {{}};
+      document.getElementById("spin").textContent = "✅";
+      document.getElementById("status-msg").textContent = "Certification complete — " + (s.grade||"") + " · " + (s.overall||0).toFixed(1) + "/100";
+      document.getElementById("status-sub").textContent = d.emailed ? "A copy was emailed to you." : "";
+      const res = document.getElementById("result");
+      res.style.display = "block";
+      res.innerHTML = '<a class="btn" href="'+d.report_url+'" target="_blank">View report →</a> ' +
+                      '<a class="btn" style="background:#1b2333" href="/app/dashboard">Back to dashboard</a>';
+    }} else if (d.status === "error") {{
+      document.getElementById("spin").textContent = "⚠️";
+      document.getElementById("status-msg").textContent = "Error";
+      document.getElementById("status-sub").textContent = d.message || "Certification failed.";
+      document.getElementById("go").disabled = false;
+    }} else {{
+      setTimeout(() => poll(jobId), 3000);
+    }}
+  }}).catch(() => setTimeout(() => poll(jobId), 4000));
+}}
 function startCert() {{
-  const provider = document.getElementById("provider").value;
-  const model = document.getElementById("model").value;
-  const suite = document.getElementById("suite").value;
-  const runs = document.getElementById("runs").value;
+  const body = {{
+    mode: mode,
+    product_name: document.getElementById("product").value,
+    suite: document.getElementById("suite").value,
+    runs_per_task: parseInt(document.getElementById("runs").value),
+  }};
+  if (mode === "model") {{
+    body.provider = document.getElementById("provider").value;
+    body.model = document.getElementById("model").value;
+  }} else {{
+    body.agent_url = document.getElementById("agent_url").value.trim();
+    body.agent_key = document.getElementById("agent_key").value;
+    body.model = document.getElementById("agent_model").value.trim() || "agent";
+    if (!body.agent_url) {{ alert("Enter your agent endpoint URL."); return; }}
+  }}
+  document.getElementById("go").disabled = true;
   document.getElementById("status-box").style.display = "block";
-  document.getElementById("status-msg").textContent = "Certification running…";
-  fetch("/certification/run", {{
-    method: "POST",
-    headers: {{"Content-Type":"application/json"}},
-    body: JSON.stringify({{provider, model, suite, runs_per_task: parseInt(runs)}})
+  document.getElementById("status-msg").textContent = "Starting certification…";
+  fetch("/app/certify/run", {{
+    method: "POST", headers: {{"Content-Type":"application/json"}}, body: JSON.stringify(body)
   }}).then(r => r.json()).then(d => {{
-    if (d.run_id) {{
-      const interval = setInterval(() => {{
-        fetch("/runs/" + d.run_id + "/stream").then(r => {{
-          document.getElementById("status-msg").textContent = "Done! Redirecting…";
-          clearInterval(interval);
-          setTimeout(() => window.location.href = "/app/dashboard", 1500);
-        }}).catch(() => {{}});
-      }}, 5000);
+    if (d.job_id) {{ poll(d.job_id); }}
+    else {{
+      document.getElementById("spin").textContent = "⚠️";
+      document.getElementById("status-msg").textContent = "Error";
+      document.getElementById("status-sub").textContent = d.detail || "Could not start certification.";
+      document.getElementById("go").disabled = false;
     }}
   }}).catch(e => {{
     document.getElementById("status-msg").textContent = "Error: " + e.message;
+    document.getElementById("go").disabled = false;
   }});
 }}
 </script>
 </body></html>"""
+
+
+@app.post("/app/certify/run")
+async def app_certify_run(request: Request, session: str | None = Cookie(default=None)) -> dict:
+    """Start a tenant-scoped certification in the background. Returns a job_id to poll."""
+    tenant = _get_tenant(session)
+    if not tenant:
+        raise HTTPException(status_code=401, detail="Not signed in")
+
+    body = await request.json()
+    mode = body.get("mode", "model")
+    suite = body.get("suite", "support")
+    runs = int(body.get("runs_per_task", 5))
+    product_name = (body.get("product_name") or "").strip()
+
+    cfg: dict = {"suite": suite, "runs": runs, "product_name": product_name}
+
+    if mode == "agent":
+        agent_url = (body.get("agent_url") or "").strip()
+        if not agent_url:
+            raise HTTPException(status_code=400, detail="Agent endpoint URL is required.")
+        cfg["provider"] = "http"
+        cfg["model"] = (body.get("model") or "agent").strip()
+        cfg["cert_type"] = "agent"
+        cfg["provider_kwargs"] = {
+            "base_url": agent_url,
+            "api_key": body.get("agent_key") or "",
+        }
+    else:
+        provider = body.get("provider", "groq")
+        cfg["provider"] = provider
+        cfg["model"] = body.get("model") or None
+        cfg["cert_type"] = "model"
+        # Require the tenant to have the matching key saved (Groq/Gemini).
+        if provider in ("groq", "gemini"):
+            if provider not in _store.get_tenant_keys(tenant["id"]):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"No {provider} key saved. Add one in Settings first.",
+                )
+
+    job_id = uuid.uuid4().hex
+    _set_job(job_id, status="queued", message="Queued…", tenant_id=tenant["id"])
+    # Snapshot the tenant dict so the worker thread doesn't touch request state.
+    tenant_snapshot = dict(tenant)
+    threading.Thread(target=_run_cert_job, args=(job_id, tenant_snapshot, cfg), daemon=True).start()
+    return {"job_id": job_id}
+
+
+@app.get("/app/certify/status/{job_id}")
+def app_certify_status(job_id: str, session: str | None = Cookie(default=None)) -> dict:
+    tenant = _get_tenant(session)
+    if not tenant:
+        raise HTTPException(status_code=401, detail="Not signed in")
+    job = _get_job(job_id)
+    if not job or job.get("tenant_id") != tenant["id"]:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return {
+        "status": job.get("status", "unknown"),
+        "message": job.get("message", ""),
+        "score": job.get("score"),
+        "report_url": job.get("report_url"),
+        "emailed": job.get("emailed", False),
+        "cert_id": job.get("cert_id"),
+    }
+
+
+def _serve_tenant_report(tenant: dict, cert_id: str, download: bool):
+    from fastapi import HTTPException as _HTTPExc
+    from benchmarks.certification import RESULTS_DIR
+    cert = _store.get_certification(tenant["id"], cert_id)
+    if not cert or not cert.get("html_file"):
+        raise _HTTPExc(status_code=404, detail="Report not found")
+    path = RESULTS_DIR / "certifications" / cert["html_file"]
+    if not path.exists():
+        raise _HTTPExc(status_code=404, detail="Report file missing")
+    html = path.read_text(encoding="utf-8")
+    headers = {}
+    if download:
+        headers["Content-Disposition"] = f'attachment; filename="runcore_certificate_{cert.get("grade","").replace("+","plus")}.html"'
+    return Response(content=html, media_type="text/html", headers=headers)
+
+
+@app.get("/app/certify/report/{cert_id}", response_class=HTMLResponse)
+def app_certify_report(cert_id: str, session: str | None = Cookie(default=None)):
+    tenant = _get_tenant(session)
+    if not tenant:
+        return RedirectResponse("/login", status_code=303)
+    return _serve_tenant_report(tenant, cert_id, download=False)
+
+
+@app.get("/app/certify/report/{cert_id}/download")
+def app_certify_report_download(cert_id: str, session: str | None = Cookie(default=None)):
+    tenant = _get_tenant(session)
+    if not tenant:
+        return RedirectResponse("/login", status_code=303)
+    return _serve_tenant_report(tenant, cert_id, download=True)

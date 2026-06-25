@@ -1,19 +1,26 @@
 # RunCore
 
-**AI Agent Runtime Optimization Engine**
+**The efficiency standard for AI agents.**
 
 [![CI](https://github.com/ptpaulinho/RunCore/actions/workflows/ci.yml/badge.svg)](https://github.com/ptpaulinho/RunCore/actions)
 [![PyPI](https://img.shields.io/pypi/v/runcore)](https://pypi.org/project/runcore/)
 [![Python](https://img.shields.io/pypi/pyversions/runcore)](https://pypi.org/project/runcore/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 
-> **Observe, measure, and automatically optimize any LLM-powered agent — in 3 lines of code.**
+> **Prove your AI agent isn't burning money. Get a RunCore Score™ — the open, verifiable measure of agent efficiency.**
 
-RunCore is the first tool that closes the full loop for AI agents: it doesn't just tell you what happened — it blocks waste before it reaches the API, prescribes ranked fixes with estimated savings, and gives you one number to track: **CpST** (Cost per Successful Task).
+Every agent benchmark today (SWE-Bench, GAIA, Terminal-Bench) scores *whether* an agent can do the task — and **ignores what it costs**. An 88% score at $50/task looks identical to 88% at $0.50/task. RunCore closes that gap with the **RunCore Score™**: a single 0–100 number that certifies how much successful work an agent delivers per dollar — fully reproducible and SHA-256 fingerprinted.
 
 ```
-pip install runcore
+pip install runcore        # measure & certify your agent
+runcore certify --provider groq
 ```
+
+The score is earned by RunCore's runtime engine, which blocks the waste that tanks efficiency — duplicate tool calls, bloated context, and infinite loops — before it ever reaches the API.
+
+- 📊 **[RunCore Score™ Methodology](docs/RUNCORE_SCORE_SPEC.md)** — open, auditable, no hidden weights
+- 🏆 **Public leaderboard** — agents ranked by efficiency (`/leaderboard`)
+- 🛡️ **Embeddable badge** — `[![RunCore Certified A](…/badge/A.svg)](…)`
 
 ---
 
@@ -35,12 +42,15 @@ Every existing tool (LangSmith, Helicone, Datadog) **observes** these patterns a
 
 | Capability | LangSmith | Helicone | Datadog LLM | **RunCore** |
 |-----------|-----------|----------|-------------|-------------|
-| Observability (what happened) | ✓ | ✓ | ✓ | ✓ |
-| CpST — unified efficiency metric | ✗ | ✗ | ✗ | ✓ |
+| **Efficiency certification (a verifiable score)** | ✗ | ✗ | ✗ | **✓** |
+| **Public efficiency leaderboard + badge** | ✗ | ✗ | ✗ | **✓** |
+| CpST — cost per successful task | ✗ | ✗ | ✗ | ✓ |
 | Blocks waste at runtime | ✗ | ✗ | ✗ | ✓ |
 | Prescribes fixes with estimated $savings | ✗ | ✗ | ✗ | ✓ |
-| Works across all frameworks | ✓ | ✓ | ✓ | ✓ |
+| Observability (what happened) | ✓ | ✓ | ✓ | ✓ |
 | Open standard trace format (ATIR) | ✗ | ✗ | ✗ | ✓ |
+
+> Observability tools tell you *what your agent did*. RunCore tells you *how efficient it is* — and gives you a score you can put on your README and show to procurement.
 
 ---
 
@@ -337,18 +347,46 @@ runcore/
 # Core
 pip install runcore
 
-# With Anthropic SDK
-pip install "runcore[anthropic]"
-
-# With OpenAI SDK
-pip install "runcore[openai]"
-
-# With LangChain
-pip install "runcore[langchain]"
+# With free LLM providers (for benchmarking)
+pip install "runcore[groq]"      # Groq — free tier at console.groq.com
+pip install "runcore[gemini]"    # Gemini — free tier at aistudio.google.com
+pip install "runcore[ollama]"    # Ollama — fully local
 
 # Everything
 pip install "runcore[all]"
 ```
+
+---
+
+## Self-hosting (Docker)
+
+Run the RunCore dashboard on your own infrastructure:
+
+```bash
+docker pull ghcr.io/ptpaulinho/runcore:latest
+docker run -p 8765:8765 ghcr.io/ptpaulinho/runcore
+# → http://localhost:8765
+```
+
+Or build from source:
+
+```bash
+git clone https://github.com/ptpaulinho/RunCore
+cd RunCore
+docker build -t runcore .
+docker run -p 8765:8765 runcore
+```
+
+---
+
+## Full integration guide
+
+See **[docs/INTEGRATION.md](docs/INTEGRATION.md)** for:
+- Step-by-step setup (3 steps, under 10 minutes)
+- Examples for LangChain, CrewAI, AutoGen, raw OpenAI/Anthropic
+- How to apply optimizations (guards) during execution
+- CI/CD integration — block merges when cost savings drop
+- Reading benchmark reports
 
 ---
 

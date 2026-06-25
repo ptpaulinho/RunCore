@@ -58,6 +58,13 @@ def _patch_anthropic() -> bool:
                 messages_count=len(messages),
                 tools_count=len(tools),
             )
+            # Auto-check loop risk after each LLM call
+            try:
+                from runcore.loops.detector import LoopDetector
+                score = LoopDetector().calculate_loop_risk_score(capture.collector.build_trace())
+                capture.check_loop_risk(score)
+            except Exception:
+                pass
             return response
 
         target.create = _patched_create
@@ -126,6 +133,12 @@ def _patch_openai() -> bool:
                 messages_count=len(messages),
                 tools_count=len(tools),
             )
+            try:
+                from runcore.loops.detector import LoopDetector
+                score = LoopDetector().calculate_loop_risk_score(capture.collector.build_trace())
+                capture.check_loop_risk(score)
+            except Exception:
+                pass
             return response
 
         target.create = _patched_create

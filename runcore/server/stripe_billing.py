@@ -152,6 +152,9 @@ def handle_webhook_event(event: dict, storage_module: Any) -> str:
 
     elif event_type == "invoice.payment_failed":
         customer_id = data.get("customer")
-        return f"payment failed for customer {customer_id} — no action taken"
+        if customer_id:
+            storage_module.downgrade_tenant_by_customer(customer_id, plan="free")
+            return f"payment failed for customer {customer_id} — downgraded to free"
+        return "payment failed — no customer id in event"
 
     return f"unhandled event type: {event_type}"

@@ -19,7 +19,7 @@ class BaseAgent(ABC):
 
     _system_prompt: str = "You are a helpful AI assistant."
 
-    def __init__(self, optimization=None) -> None:
+    def __init__(self, optimization=None, seed: int | None = 42) -> None:
         self.tools: list[ToolSchema] = []
         self.collector = TraceCollector()
         self._contexts: dict[str, list[dict[str, str]]] = {}
@@ -28,6 +28,10 @@ class BaseAgent(ABC):
         self._run_seen_sigs: dict[str, set[str]] = {}
         # Per-run quality signals for real scoring
         self._run_signals: dict[str, dict[str, Any]] = {}
+        # Seed random for reproducible benchmark results
+        if seed is not None:
+            import random
+            random.seed(seed)
 
     @abstractmethod
     def run(self, task: str) -> AgentTrace:

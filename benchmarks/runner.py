@@ -29,18 +29,22 @@ RESULTS_DIR.mkdir(exist_ok=True)
 # Provider factory
 # ---------------------------------------------------------------------------
 
-def _build_provider(name: str, model: str | None):
+def _build_provider(name: str, model: str | None, provider_kwargs: dict | None = None):
+    pk = dict(provider_kwargs or {})
     if name == "groq":
         from runcore.providers.groq import GroqProvider
-        return GroqProvider(model=model or "llama-3.1-8b-instant")
+        return GroqProvider(model=model or "llama-3.1-8b-instant", **pk)
     elif name == "gemini":
         from runcore.providers.gemini import GeminiProvider
-        return GeminiProvider(model=model or "gemini-1.5-flash-8b")
+        return GeminiProvider(model=model or "gemini-1.5-flash-8b", **pk)
     elif name == "ollama":
         from runcore.providers.ollama import OllamaProvider
-        return OllamaProvider(model=model or "llama3.2")
+        return OllamaProvider(model=model or "llama3.2", **pk)
+    elif name in ("http", "agent"):
+        from runcore.providers.http_agent import HttpAgentProvider
+        return HttpAgentProvider(model=model or "agent", **pk)
     else:
-        raise ValueError(f"Unknown provider: {name}. Choose groq | gemini | ollama")
+        raise ValueError(f"Unknown provider: {name}. Choose groq | gemini | ollama | http")
 
 
 # ---------------------------------------------------------------------------
@@ -52,8 +56,9 @@ def run_one(
     provider_name: str,
     model: str | None,
     with_guards: bool,
+    provider_kwargs: dict | None = None,
 ) -> tuple[AgentRun, runcore.atir.spec.ATIRTrace]:
-    provider = _build_provider(provider_name, model)
+    provider = _build_provider(provider_name, model, provider_kwargs)
     guards = GuardConfig(
         dedup_enabled=True,
         loop_break_enabled=True,

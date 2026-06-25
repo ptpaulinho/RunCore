@@ -136,6 +136,23 @@ class Capture:
         if self._guard_engine is not None:
             self._guard_engine.new_turn()
 
+    def dedup_check(self, name: str, arguments: dict[str, Any]) -> bool:
+        """Register a tool call and report whether it is a duplicate — never raises.
+
+        This is the cooperative form of the dedup guard: instead of aborting the run
+        with ``DuplicateToolCallError``, callers use the boolean to serve the call from
+        their own result cache (the real saving) and keep going. Updates guard savings
+        accounting. Returns False when no guard engine is active.
+        """
+        if self._guard_engine is None:
+            return False
+        from runcore.sdk.guards import DuplicateToolCallError
+        try:
+            self._guard_engine.check_tool_call(name, arguments)
+            return False
+        except DuplicateToolCallError:
+            return True
+
     def check_loop_risk(self, loop_risk_score: float) -> None:
         """Check loop risk against guard threshold.  Raises LoopBreakError if exceeded."""
         if self._guard_engine is not None:

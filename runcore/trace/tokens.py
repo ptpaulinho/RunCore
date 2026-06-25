@@ -4,10 +4,38 @@ from __future__ import annotations
 from typing import Any
 
 MODEL_COSTS: dict[str, dict[str, float]] = {
-    "gpt-4": {"input": 0.03 / 1000, "output": 0.06 / 1000},
-    "gpt-3.5-turbo": {"input": 0.001 / 1000, "output": 0.002 / 1000},
-    "claude-3-5-sonnet-20241022": {"input": 0.003 / 1000, "output": 0.015 / 1000},
-    "claude-3-haiku-20240307": {"input": 0.00025 / 1000, "output": 0.00125 / 1000},
+    # OpenAI
+    "gpt-4":                     {"input": 0.03 / 1000,    "output": 0.06 / 1000},
+    "gpt-4-turbo":               {"input": 0.01 / 1000,    "output": 0.03 / 1000},
+    "gpt-4o":                    {"input": 0.0025 / 1000,  "output": 0.01 / 1000},
+    "gpt-4o-mini":               {"input": 0.00015 / 1000, "output": 0.0006 / 1000},
+    "gpt-3.5-turbo":             {"input": 0.001 / 1000,   "output": 0.002 / 1000},
+    # Anthropic — Claude 3.x
+    "claude-3-5-sonnet-20241022":{"input": 0.003 / 1000,   "output": 0.015 / 1000},
+    "claude-3-5-haiku-20241022": {"input": 0.0008 / 1000,  "output": 0.004 / 1000},
+    "claude-3-opus-20240229":    {"input": 0.015 / 1000,   "output": 0.075 / 1000},
+    "claude-3-haiku-20240307":   {"input": 0.00025 / 1000, "output": 0.00125 / 1000},
+    # Anthropic — Claude 4.x (2025)
+    "claude-sonnet-4-6":         {"input": 0.003 / 1000,   "output": 0.015 / 1000},
+    "claude-haiku-4-5-20251001": {"input": 0.0008 / 1000,  "output": 0.004 / 1000},
+    "claude-opus-4-8":           {"input": 0.015 / 1000,   "output": 0.075 / 1000},
+    # Groq (free tier — $0 cost, non-zero for paid)
+    "llama3-8b-8192":            {"input": 0.0,             "output": 0.0},
+    "llama3-70b-8192":           {"input": 0.0,             "output": 0.0},
+    "llama-3.1-8b-instant":      {"input": 0.0,             "output": 0.0},
+    "llama-3.3-70b-versatile":   {"input": 0.0,             "output": 0.0},
+    "mixtral-8x7b-32768":        {"input": 0.0,             "output": 0.0},
+    "gemma2-9b-it":              {"input": 0.0,             "output": 0.0},
+    # Gemini (free tier — $0 cost)
+    "gemini-1.5-flash":          {"input": 0.0,             "output": 0.0},
+    "gemini-1.5-pro":            {"input": 0.0,             "output": 0.0},
+    "gemini-2.0-flash":          {"input": 0.0,             "output": 0.0},
+    "gemini-2.5-flash":          {"input": 0.0,             "output": 0.0},
+    # Ollama (fully local — $0)
+    "llama3":                    {"input": 0.0,             "output": 0.0},
+    "llama3.1":                  {"input": 0.0,             "output": 0.0},
+    "mistral":                   {"input": 0.0,             "output": 0.0},
+    "qwen2.5":                   {"input": 0.0,             "output": 0.0},
 }
 
 

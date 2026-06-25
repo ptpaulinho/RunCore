@@ -6,6 +6,103 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.11.0] — 2026-06-25
+
+### Added — certify from the dashboard, no terminal
+
+- **"Run Certification" button** that runs entirely server-side: the dashboard starts a background
+  job (`POST /app/certify/run`) and polls `GET /app/certify/status/{job_id}` until done — no CLI,
+  no local files.
+- **Per-tenant provider keys** (`tenant_keys` table): each company saves its own Groq/Gemini key in
+  Settings; the cert runner applies it to the environment for the duration of the run (serialized so
+  concurrent tenants never clobber each other's keys).
+- **Bring your own agent**: `HttpAgentProvider` drives a company's own OpenAI-compatible endpoint
+  through the benchmark suite, so they certify their real production agent (measured tokens/cost/
+  success), not just a generic model. New "Bring your own agent" tab on the certify page.
+- **Reports in the dashboard**: view and download each certificate online, tenant-scoped
+  (`/app/certify/report/{cert_id}` + `/download`); cross-tenant access returns 404.
+- **Automatic email** (`runcore/server/email_send.py`): on completion the result + grade + badge are
+  emailed with the HTML certificate attached. Env-driven (`RUNCORE_SMTP_*`); a safe no-op when SMTP
+  is unconfigured so certification never fails on email.
+- Dashboard now shows the **product/agent name** and an **embeddable badge snippet** for certified
+  results.
+
+### Fixed
+
+- **SQLite writes were silently rolled back**: the `_db()` context manager never committed, so
+  tenant registrations, keys and certifications did not persist on SQLite. It now commits on clean
+  exit (Postgres paths already committed explicitly — the extra commit is a no-op).
+- **Cloud/SDK ingest auth was broken**: a second `_require_tenant` (cookie-based) shadowed the
+  Bearer-API-key version, so every `/cloud/*` endpoint bound a `Request` object as a SQL parameter.
+  The dashboard helper is renamed `_require_session_tenant`; `/cloud/*` API-key auth works again.
+
+## [0.10.1] — 2026-06-23
+
+### Fixed — guards no longer break the agent they optimize
+
+Running real certifications (Groq) exposed that the dedup guard **raised and aborted the whole
+run** on the first duplicate tool call, which destroyed task success *and* produced fake "savings"
+(the early abort just sent fewer tokens). Fixed end-to-end:
+
+- **Cooperative dedup** (`Capture.dedup_check`, `benchmarks/agents/base.py`): a duplicate call now
+  serves a compact reference from cache and the agent **keeps going** — real token saving (~13–28%
+  reproducible), success preserved. No more aborts.
+- **Robust success detection**: ground truth is now "did the agent call the expected tools", with
+  keyword phrasing as a secondary signal (a correct answer worded differently no longer fails).
+- **Certification success gate** (`MIN_SUCCESS_FOR_CERT = 60%`): an agent that fails most tasks can
+  never be certified, regardless of cost/token savings — efficiency requires correctness.
+- **Free-provider cost dimension**: $0-cost providers (Groq/Gemini/Ollama) now score cost via token
+  reduction instead of a degenerate 0%.
+- **`is_available()`** for Groq/Gemini now also checks the SDK package is importable (was reporting
+  "ready" without it, causing silent run failures).
+- Deterministic benchmark waste: the support suite now mandates a re-verification lookup so the
+  dedup saving is reproducible rather than dependent on LLM whim.
+
+Methodology changes documented in `docs/RUNCORE_SCORE_SPEC.md`.
+
+## [0.10.0] — 2026-06-23
+
+### Repositioned — "The efficiency standard for AI agents"
+
+RunCore is now positioned around the **RunCore Score™** (the product) with the runtime engine as
+the mechanism that earns it. No engine code removed — narrative + new standard surfaces.
+
+### Added
+- `docs/RUNCORE_SCORE_SPEC.md` — open, auditable Score methodology (weights, curve, CpST, fingerprint, versioning)
+- `docs/MANIFESTO.md` — "Why AI agent benchmarks lie about cost" position paper
+- `docs/STRATEGY.md`, `docs/REPOSITION_AUDIT.md`, `docs/GO_TO_MARKET.md` — market analysis + action plan
+- `GET /leaderboard` — public efficiency leaderboard, ranked by RunCore Score, with "get listed" CTA
+- `GET /badge/{grade}.svg` + `GET /badge/score/{value}.svg` — embeddable certification badges; copyable markdown in cert reports
+- Settings panel: in-dashboard API-key management (`/settings/keys`, `/settings/status`) and one-click test runner (`/tests/run`)
+- `Setup.command` / `RunCore.command` — double-click macOS launchers (no-terminal workflow)
+- `runcore/server/config.py` — local key store (`.runcore/config.json`, gitignored)
+
+### Changed
+- README, PITCH, CLI help, certification report footer, pricing & dashboard copy lead with the efficiency-standard positioning
+- Nav across all pages now includes **Leaderboard**
+
+## [0.9.0] — 2026-06-17
+
+### Added
+
+**Fase 19: Real LLM Benchmark Zone**
+- `runcore/providers/base.py` — `BaseProvider`, `ProviderResponse`, `ToolDefinition`, `Message` dataclasses
+- `runcore/providers/groq.py` — Groq adapter (free, llama-3.1-8b-instant) via `pip install runcore[groq]`
+- `runcore/providers/gemini.py` — Gemini adapter (free, gemini-1.5-flash-8b) via `pip install runcore[gemini]`
+- `runcore/providers/ollama.py` — Ollama adapter (local/free, llama3.2) via `pip install runcore[ollama]`
+- `benchmarks/tasks.py` — 5 standardized benchmark tasks (3 support, 2 research) with canned tool responses and deliberate inefficiency patterns that RunCore's guards catch
+- `benchmarks/agents/base.py` — `BaseAgent` agentic loop: real LLM reasoning + deterministic tool responses; all spans recorded into RunCore Capture
+- `benchmarks/runner.py` — full benchmark runner: baseline vs guarded, saves ATIR traces to `benchmarks/results/`, prints comparison table
+- `benchmarks/reporter.py` — dark-theme HTML report generator showing before/after metrics + OptimizationAdvisor prescriptions
+- `benchmarks/run_benchmark.py` — CLI entry point: `python -m benchmarks.run_benchmark run --provider groq --suite support`
+- `tests/integration/conftest.py` — skip decorators (`requires_groq`, `requires_gemini`, `requires_ollama`) for CI
+- `tests/integration/test_groq.py` — Groq integration tests (skipped when no API key)
+- `tests/integration/test_gemini.py` — Gemini integration tests
+- `tests/integration/test_ollama.py` — Ollama integration tests
+- `pyproject.toml` — new optional deps: `groq`, `gemini`, `ollama`, all included in `[all]`
+
+---
+
 ## [0.8.0] — 2026-06-17
 
 ### Added

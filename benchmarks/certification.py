@@ -115,6 +115,7 @@ def run_certification(
     runs_per_task: int = 5,
     suite: str = "all",
     verbose: bool = True,
+    provider_kwargs: dict | None = None,
 ) -> RunCoreScore:
     """Run the full certification suite and return a RunScore."""
     ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
@@ -148,8 +149,8 @@ def run_certification(
                 print(f"  [{task.id}] run {run_i+1}/{runs_per_task} ...", end=" ", flush=True)
 
             try:
-                b_run, b_trace = run_one(task, provider_name, model, with_guards=False)
-                o_run, o_trace = run_one(task, provider_name, model, with_guards=True)
+                b_run, b_trace = run_one(task, provider_name, model, with_guards=False, provider_kwargs=provider_kwargs)
+                o_run, o_trace = run_one(task, provider_name, model, with_guards=True, provider_kwargs=provider_kwargs)
 
                 b_cost   = b_trace.aggregates.total_cost_usd
                 o_cost   = o_trace.aggregates.total_cost_usd

@@ -1,26 +1,31 @@
-# RunCore — The Missing Layer for Production AI Agents
+# RunCore — The Efficiency Standard for AI Agents
 
 ---
 
 ## The Problem
 
-- **AI agents burn money in silence.** Duplicate tool calls, bloated context windows, and
-  undetected loops consume 30–60% of LLM spend with no quality benefit.
-- **There is no standard unit of agent efficiency.** Teams cannot compare models, frameworks, or
-  prompt changes against a common baseline — so optimization is guesswork.
-- **Observability tools tell you what happened. They do not fix it.** Tracing and logging
-  produce dashboards; they do not block waste before it reaches the API.
+- **Every agent benchmark ignores cost.** SWE-Bench, GAIA, Terminal-Bench score *whether* an agent
+  succeeds — an 88% result at $50/task is treated identically to 88% at $0.50/task. There is no
+  accepted way to prove an agent is *efficient*.
+- **AI agents burn money in silence.** Duplicate tool calls, bloated context, and undetected loops
+  consume 30–60% of LLM spend with no quality benefit — and nothing certifies that you fixed it.
+- **Buyers can't compare.** Procurement and heads of AI have no verifiable, portable number to rank
+  one agent/model/vendor against another on cost-efficiency.
 
 ---
 
 ## The Solution
 
-- **Runtime Guards** intercept duplicate tool calls, compress bloated context, and break
-  infinite retry loops *before* the LLM call is made — zero code changes to your agent logic.
-- **CpST (Cost per Successful Task)** is a single, provider-agnostic KPI that collapses token
-  count, cost, and success rate into one number your engineering and finance teams can track.
-- **OptimizationAdvisor** reads ATIR traces and emits ranked, effort-scored prescriptions with
-  estimated dollar savings — actionable in one sprint, not a quarter.
+- **The RunCore Score™** — a single 0–100 number that certifies how much *successful work an agent
+  delivers per dollar*. Open methodology, reproducible, SHA-256 fingerprinted. A credit score for
+  agent efficiency.
+- **Public leaderboard + embeddable badge** — agents ranked by efficiency; certified teams put a
+  "RunCore Certified — Grade A" badge on their README and in RFP responses. A standard with network
+  effects.
+- **The engine that earns the score** — Runtime Guards intercept duplicate tool calls, compress
+  bloated context, and break loops *before* the LLM call (zero code changes); CpST (Cost per
+  Successful Task) is the metric the score is built on; OptimizationAdvisor prescribes ranked,
+  dollar-quantified fixes to raise the score.
 
 ---
 

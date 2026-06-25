@@ -16,6 +16,15 @@ env/
 .DS_Store
 .runcore/reports/
 .runcore/traces/
+.runcore/config.json
+.runcore/cloud.db
+.venv/
 *.whl
 *.tar.gz
 setup.py
+
+# Deploy secrets
+deploy/.env
+
+# Local agent config
+.claude/

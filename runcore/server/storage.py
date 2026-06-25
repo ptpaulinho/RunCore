@@ -70,10 +70,19 @@ from contextlib import contextmanager
 
 @contextmanager
 def _db():
-    """Context manager that ensures connection is always closed."""
+    """Context manager that commits on clean exit and always closes the connection.
+
+    SQLite opens an implicit transaction for DML; without an explicit commit the
+    write is rolled back on close. Functions that already commit (Postgres paths)
+    are unaffected — a second commit is a no-op.
+    """
     con = _conn()
     try:
         yield con
+        try:
+            con.commit()
+        except Exception:
+            pass
     finally:
         con.close()
 
@@ -138,20 +147,29 @@ CREATE TABLE IF NOT EXISTS sessions (
     expires_at  TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS certifications (
-    id          TEXT PRIMARY KEY,
-    tenant_id   TEXT NOT NULL REFERENCES tenants(id),
-    provider    TEXT,
-    model       TEXT,
-    suite       TEXT,
-    score       REAL,
-    grade       TEXT,
-    certified   INTEGER,
-    n_runs      INTEGER,
-    timestamp   TEXT,
-    json_data   TEXT,
-    html_file   TEXT
+    id           TEXT PRIMARY KEY,
+    tenant_id    TEXT NOT NULL REFERENCES tenants(id),
+    provider     TEXT,
+    model        TEXT,
+    suite        TEXT,
+    score        REAL,
+    grade        TEXT,
+    certified    INTEGER,
+    n_runs       INTEGER,
+    timestamp    TEXT,
+    json_data    TEXT,
+    html_file    TEXT,
+    product_name TEXT,
+    cert_type    TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_cert_tenant ON certifications(tenant_id);
+CREATE TABLE IF NOT EXISTS tenant_keys (
+    tenant_id   TEXT NOT NULL REFERENCES tenants(id),
+    provider    TEXT NOT NULL,
+    key_value   TEXT NOT NULL,
+    updated_at  TEXT NOT NULL,
+    PRIMARY KEY (tenant_id, provider)
+);
 """
 
 _PG_DDL = """
@@ -195,20 +213,29 @@ CREATE TABLE IF NOT EXISTS sessions (
     expires_at  TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS certifications (
-    id          TEXT PRIMARY KEY,
-    tenant_id   TEXT NOT NULL REFERENCES tenants(id),
-    provider    TEXT,
-    model       TEXT,
-    suite       TEXT,
-    score       REAL,
-    grade       TEXT,
-    certified   INTEGER,
-    n_runs      INTEGER,
-    timestamp   TEXT,
-    json_data   TEXT,
-    html_file   TEXT
+    id           TEXT PRIMARY KEY,
+    tenant_id    TEXT NOT NULL REFERENCES tenants(id),
+    provider     TEXT,
+    model        TEXT,
+    suite        TEXT,
+    score        REAL,
+    grade        TEXT,
+    certified    INTEGER,
+    n_runs       INTEGER,
+    timestamp    TEXT,
+    json_data    TEXT,
+    html_file    TEXT,
+    product_name TEXT,
+    cert_type    TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_cert_tenant ON certifications(tenant_id);
+CREATE TABLE IF NOT EXISTS tenant_keys (
+    tenant_id   TEXT NOT NULL REFERENCES tenants(id),
+    provider    TEXT NOT NULL,
+    key_value   TEXT NOT NULL,
+    updated_at  TEXT NOT NULL,
+    PRIMARY KEY (tenant_id, provider)
+);
 """
 
 
@@ -225,6 +252,29 @@ def init_db() -> None:
         else:
             con.executescript(_SQLITE_DDL)
             con.commit()
+        _migrate(con)
+
+
+def _migrate(con) -> None:
+    """Add columns/tables missing from databases created by older versions."""
+    # certifications.product_name / cert_type
+    add_cols = [
+        ("certifications", "product_name", "TEXT"),
+        ("certifications", "cert_type", "TEXT"),
+    ]
+    for table, col, coltype in add_cols:
+        try:
+            if _POSTGRES:
+                cur = con.cursor()
+                cur.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {coltype}")
+                con.commit(); cur.close()
+            else:
+                existing = {r[1] for r in con.execute(f"PRAGMA table_info({table})").fetchall()}
+                if col not in existing:
+                    con.execute(f"ALTER TABLE {table} ADD COLUMN {col} {coltype}")
+                    con.commit()
+        except Exception:
+            pass  # column already exists / race — safe to ignore
 
 
 # ---------------------------------------------------------------------------
@@ -657,7 +707,8 @@ def delete_session(token: str) -> None:
             con.execute("DELETE FROM sessions WHERE token=?", (token,))
 
 
-def save_certification(tenant_id: str, cert: dict, html_file: str = "") -> str:
+def save_certification(tenant_id: str, cert: dict, html_file: str = "",
+                       product_name: str = "", cert_type: str = "model") -> str:
     """Persist a certification result for a tenant."""
     cert_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
@@ -666,15 +717,75 @@ def save_certification(tenant_id: str, cert: dict, html_file: str = "") -> str:
         vals = (cert_id, tenant_id, cert.get("provider"), cert.get("model"),
                 cert.get("suite"), cert.get("overall"), cert.get("grade"),
                 1 if cert.get("certified") else 0, cert.get("n_runs"),
-                cert.get("timestamp", now), json.dumps(cert), html_file)
+                cert.get("timestamp", now), json.dumps(cert), html_file,
+                product_name or None, cert_type or "model")
         sql = (f"INSERT INTO certifications(id,tenant_id,provider,model,suite,score,grade,"
-               f"certified,n_runs,timestamp,json_data,html_file) VALUES"
-               f"({ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph})")
+               f"certified,n_runs,timestamp,json_data,html_file,product_name,cert_type) VALUES"
+               f"({ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph})")
         if _POSTGRES:
             cur = con.cursor(); cur.execute(sql, vals); con.commit(); cur.close()
         else:
             con.execute(sql, vals)
     return cert_id
+
+
+def get_certification(tenant_id: str, cert_id: str) -> dict | None:
+    """Fetch a single certification owned by the tenant."""
+    with _lock, _db() as con:
+        ph = "%s" if _POSTGRES else "?"
+        if _POSTGRES:
+            import psycopg2.extras
+            con.cursor_factory = psycopg2.extras.RealDictCursor
+            cur = con.cursor()
+            cur.execute(f"SELECT * FROM certifications WHERE tenant_id={ph} AND id={ph}",
+                        (tenant_id, cert_id))
+            row = cur.fetchone(); cur.close()
+        else:
+            row = con.execute("SELECT * FROM certifications WHERE tenant_id=? AND id=?",
+                              (tenant_id, cert_id)).fetchone()
+    return dict(row) if row else None
+
+
+# ---------------------------------------------------------------------------
+# Per-tenant provider keys (BYO Groq / Gemini keys, isolated per company)
+# ---------------------------------------------------------------------------
+
+def set_tenant_key(tenant_id: str, provider: str, key: str) -> None:
+    """Upsert (or clear, if key is blank) a provider API key for a tenant."""
+    now = datetime.now(timezone.utc).isoformat()
+    key = (key or "").strip()
+    with _lock, _db() as con:
+        ph = "%s" if _POSTGRES else "?"
+        if not key:
+            sql = f"DELETE FROM tenant_keys WHERE tenant_id={ph} AND provider={ph}"
+            vals = (tenant_id, provider)
+        elif _POSTGRES:
+            sql = (f"INSERT INTO tenant_keys(tenant_id,provider,key_value,updated_at) "
+                   f"VALUES({ph},{ph},{ph},{ph}) "
+                   f"ON CONFLICT (tenant_id,provider) DO UPDATE SET key_value=EXCLUDED.key_value, updated_at=EXCLUDED.updated_at")
+            vals = (tenant_id, provider, key, now)
+        else:
+            sql = ("INSERT OR REPLACE INTO tenant_keys(tenant_id,provider,key_value,updated_at) "
+                   "VALUES(?,?,?,?)")
+            vals = (tenant_id, provider, key, now)
+        if _POSTGRES:
+            cur = con.cursor(); cur.execute(sql, vals); con.commit(); cur.close()
+        else:
+            con.execute(sql, vals)
+
+
+def get_tenant_keys(tenant_id: str) -> dict[str, str]:
+    """Return {provider: key} for a tenant."""
+    with _lock, _db() as con:
+        ph = "%s" if _POSTGRES else "?"
+        if _POSTGRES:
+            cur = con.cursor()
+            cur.execute(f"SELECT provider,key_value FROM tenant_keys WHERE tenant_id={ph}", (tenant_id,))
+            rows = cur.fetchall(); cur.close()
+            return {r[0]: r[1] for r in rows}
+        rows = con.execute("SELECT provider,key_value FROM tenant_keys WHERE tenant_id=?",
+                           (tenant_id,)).fetchall()
+        return {r[0]: r[1] for r in rows}
 
 
 def list_certifications(tenant_id: str) -> list[dict]:
