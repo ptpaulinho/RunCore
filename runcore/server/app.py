@@ -30,7 +30,8 @@ app = FastAPI(title="RunCore Dashboard", version="0.4.0")
 from runcore.server import storage as _store
 from runcore.server import billing as _billing
 from runcore.server import stripe_billing as _stripe
-from runcore.server import config as _config
+from runcore.server.config import load_into_env, set_keys, provider_status as _provider_status_fn
+import runcore.server.config as _config
 
 @app.on_event("startup")
 def _startup():
