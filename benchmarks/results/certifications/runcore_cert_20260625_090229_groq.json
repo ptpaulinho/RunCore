@@ -1,0 +1,44 @@
+{
+  "overall": 67.9,
+  "grade": "B",
+  "certified": true,
+  "provider": "groq",
+  "model": "llama-3.3-70b-versatile",
+  "suite": "all",
+  "n_runs": 24,
+  "n_tasks": 8,
+  "timestamp": "20260625_090229",
+  "confidence_interval_95": [
+    62.0,
+    73.9
+  ],
+  "dimensions": [
+    {
+      "name": "Cost savings",
+      "score": 58.085853747548,
+      "improvement_pct": 20.74494776698143,
+      "target_pct": 25.0,
+      "passed": false,
+      "baseline": 0.0,
+      "optimized": 0.0
+    },
+    {
+      "name": "Token reduction",
+      "score": 71.11742165047214,
+      "improvement_pct": 20.74494776698143,
+      "target_pct": 20.0,
+      "passed": true,
+      "baseline": 1826.75,
+      "optimized": 1447.7916666666667
+    },
+    {
+      "name": "Task success rate",
+      "score": 79.16666666666666,
+      "improvement_pct": -8.333333333333343,
+      "target_pct": 0,
+      "passed": false,
+      "baseline": 87.5,
+      "optimized": 79.16666666666666
+    }
+  ]
+}

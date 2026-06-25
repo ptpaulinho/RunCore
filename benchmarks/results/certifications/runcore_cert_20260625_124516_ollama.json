@@ -1,0 +1,44 @@
+{
+  "overall": 54.0,
+  "grade": "C",
+  "certified": false,
+  "provider": "ollama",
+  "model": "llama3.1:8b",
+  "suite": "support",
+  "n_runs": 15,
+  "n_tasks": 3,
+  "timestamp": "20260625_124516",
+  "confidence_interval_95": [
+    53.5,
+    54.6
+  ],
+  "dimensions": [
+    {
+      "name": "Cost savings",
+      "score": 34.642513008286755,
+      "improvement_pct": 12.372326074388127,
+      "target_pct": 25.0,
+      "passed": false,
+      "baseline": 0.0,
+      "optimized": 0.0
+    },
+    {
+      "name": "Token reduction",
+      "score": 43.303141260358444,
+      "improvement_pct": 12.372326074388127,
+      "target_pct": 20.0,
+      "passed": false,
+      "baseline": 1729.6666666666667,
+      "optimized": 1515.6666666666667
+    },
+    {
+      "name": "Task success rate",
+      "score": 100.0,
+      "improvement_pct": 0.0,
+      "target_pct": 0,
+      "passed": true,
+      "baseline": 100.0,
+      "optimized": 100.0
+    }
+  ]
+}

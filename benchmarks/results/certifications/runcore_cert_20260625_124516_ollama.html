@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RunCore Certification — ollama / llama3.1:8b</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #070c19; color: #e2e8f0; min-height: 100vh; }
+  .page { max-width: 860px; margin: 0 auto; padding: 48px 24px; }
+
+  /* Header */
+  .cert-header { text-align: center; margin-bottom: 48px; }
+  .brand { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 32px; }
+  .brand-logo { width: 36px; height: 36px; }
+  .brand-name { font-size: 1.4rem; font-weight: 700; color: #f8fafc; letter-spacing: -.3px; }
+
+  /* Score circle */
+  .score-ring { position: relative; width: 200px; height: 200px; margin: 0 auto 24px; }
+  .score-ring svg { transform: rotate(-90deg); }
+  .score-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .score-number { font-size: 3rem; font-weight: 800; line-height: 1; }
+  .score-max { font-size: .85rem; color: #64748b; margin-top: 2px; }
+  .score-grade { font-size: 1.1rem; font-weight: 700; letter-spacing: 1px; margin-top: 4px; }
+
+  /* Certified badge */
+  .cert-badge { display: inline-flex; align-items: center; gap: 8px; padding: 8px 20px; border-radius: 100px; font-size: .9rem; font-weight: 600; margin-bottom: 12px; }
+  .cert-badge.pass { background: rgba(34,197,94,.15); color: #22c55e; border: 1px solid rgba(34,197,94,.3); }
+  .cert-badge.fail { background: rgba(239,68,68,.15); color: #ef4444; border: 1px solid rgba(239,68,68,.3); }
+
+  /* Meta */
+  .meta-row { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
+  .meta-item { font-size: .8rem; color: #64748b; }
+  .meta-item strong { color: #94a3b8; font-weight: 500; }
+
+  /* Cards */
+  .card { background: #0d1830; border: 1px solid rgba(91,138,247,.13); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+  .card-title { font-size: .78rem; font-weight: 600; letter-spacing: .8px; color: #64748b; text-transform: uppercase; margin-bottom: 20px; }
+
+  /* CI band */
+  .ci-band { background: rgba(91,138,247,.08); border: 1px solid rgba(91,138,247,.2); border-radius: 8px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+  .ci-text { font-size: .82rem; color: #94a3b8; }
+  .ci-range { font-size: 1rem; font-weight: 600; color: #6488f5; }
+
+  /* Fingerprint */
+  .fingerprint { display: flex; align-items: center; gap: 12px; background: #0a1120; border: 1px solid rgba(91,138,247,.1); border-radius: 8px; padding: 12px 16px; margin-top: 20px; }
+  .fp-label { font-size: .75rem; color: #475569; text-transform: uppercase; letter-spacing: .5px; }
+  .fp-value { font-family: monospace; font-size: .85rem; color: #6488f5; letter-spacing: 2px; }
+  .fp-stamp { font-size: .75rem; color: #334155; margin-left: auto; }
+
+  /* Chart */
+  .chart-wrap { position: relative; height: 140px; margin-top: 8px; }
+
+  /* Footer */
+  .footer { text-align: center; margin-top: 40px; font-size: .78rem; color: #334155; }
+  .footer a { color: #6488f5; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="cert-header">
+    <div class="brand">
+      <svg class="brand-logo" viewBox="0 0 24 24" fill="none" stroke="url(#lg)" stroke-width="2.5">
+        <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#6488f5"/><stop offset="100%" stop-color="#8aaaf8"/>
+        </linearGradient></defs>
+        <polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/>
+      </svg>
+      <span class="brand-name">RunCore</span>
+    </div>
+
+    <div class="score-ring">
+      <svg width="200" height="200" viewBox="0 0 200 200">
+        <circle cx="100" cy="100" r="88" fill="none" stroke="#1e293b" stroke-width="12"/>
+        <circle cx="100" cy="100" r="88" fill="none" stroke="#f59e0b" stroke-width="12"
+          stroke-dasharray="298.6 552.9"
+          stroke-linecap="round"/>
+      </svg>
+      <div class="score-center">
+        <div class="score-number" style="color:#f59e0b">54</div>
+        <div class="score-max">out of 100</div>
+        <div class="score-grade" style="color:#f59e0b">C</div>
+      </div>
+    </div>
+
+    <div>
+      <span class="cert-badge fail">
+        ✗ Not Certified
+      </span>
+    </div>
+    <p style="font-size:.9rem;color:#64748b;margin-top:8px">
+      Agent efficiency verified against the open RunCore Score™ methodology
+    </p>
+
+    <div class="meta-row">
+      <span class="meta-item"><strong>Provider</strong> ollama</span>
+      <span class="meta-item"><strong>Model</strong> llama3.1:8b</span>
+      <span class="meta-item"><strong>Tasks</strong> 3</span>
+      <span class="meta-item"><strong>Runs</strong> 15</span>
+      <span class="meta-item"><strong>Suite</strong> support</span>
+      <span class="meta-item"><strong>Date</strong> 2026-06-25 12:49 UTC</span>
+    </div>
+  </div>
+
+  <!-- Dimensions -->
+  <div class="card">
+    <div class="card-title">Performance dimensions</div>
+    
+        <div style="margin-bottom:24px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+            <span style="font-size:.9rem;font-weight:600;color:#e2e8f0">Cost savings</span>
+            <span style="display:flex;gap:12px;align-items:center">
+              <span style="color:#f59e0b;font-size:.75rem;font-weight:600">⚠ BELOW TARGET</span>
+              <span style="font-size:1.1rem;font-weight:700;color:#f8fafc">35<span style="font-size:.7rem;color:#94a3b8">/100</span></span>
+            </span>
+          </div>
+          <div style="background:#1e293b;border-radius:6px;height:8px;overflow:hidden">
+            <div style="width:34.642513008286755%;height:100%;background:#f59e0b;border-radius:6px;transition:width .6s"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:4px">
+            <span style="font-size:.75rem;color:#64748b">baseline: $0.000000</span>
+            <span style="font-size:.75rem;color:#22c55e">+12.4% improvement → $0.000000</span>
+          </div>
+        </div>
+        <div style="margin-bottom:24px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+            <span style="font-size:.9rem;font-weight:600;color:#e2e8f0">Token reduction</span>
+            <span style="display:flex;gap:12px;align-items:center">
+              <span style="color:#f59e0b;font-size:.75rem;font-weight:600">⚠ BELOW TARGET</span>
+              <span style="font-size:1.1rem;font-weight:700;color:#f8fafc">43<span style="font-size:.7rem;color:#94a3b8">/100</span></span>
+            </span>
+          </div>
+          <div style="background:#1e293b;border-radius:6px;height:8px;overflow:hidden">
+            <div style="width:43.303141260358444%;height:100%;background:#f59e0b;border-radius:6px;transition:width .6s"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:4px">
+            <span style="font-size:.75rem;color:#64748b">baseline: 1,730 tok</span>
+            <span style="font-size:.75rem;color:#22c55e">+12.4% improvement → 1,516 tok</span>
+          </div>
+        </div>
+        <div style="margin-bottom:24px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+            <span style="font-size:.9rem;font-weight:600;color:#e2e8f0">Task success rate</span>
+            <span style="display:flex;gap:12px;align-items:center">
+              <span style="color:#22c55e;font-size:.75rem;font-weight:600">✓ TARGET MET</span>
+              <span style="font-size:1.1rem;font-weight:700;color:#f8fafc">100<span style="font-size:.7rem;color:#94a3b8">/100</span></span>
+            </span>
+          </div>
+          <div style="background:#1e293b;border-radius:6px;height:8px;overflow:hidden">
+            <div style="width:100%;height:100%;background:#22c55e;border-radius:6px;transition:width .6s"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:4px">
+            <span style="font-size:.75rem;color:#64748b">baseline: 100%</span>
+            <span style="font-size:.75rem;color:#22c55e">+0.0% improvement → 100%</span>
+          </div>
+        </div>
+    <div class="ci-band">
+      <div>
+        <div class="fp-label">95% Confidence Interval</div>
+        <div class="ci-range">[53.5 — 54.6]</div>
+      </div>
+      <div class="ci-text">Score is stable across 15 independent runs with 95% confidence.</div>
+    </div>
+  </div>
+
+  <!-- Score distribution chart -->
+  <div class="card">
+    <div class="card-title">Score distribution — per-run breakdown</div>
+    <div class="chart-wrap">
+      <canvas id="sparkChart" role="img" aria-label="Run-by-run score distribution chart"></canvas>
+    </div>
+  </div>
+
+  <!-- Fingerprint -->
+  <div class="fingerprint">
+    <div>
+      <div class="fp-label">Result fingerprint (SHA-256)</div>
+      <div class="fp-value">D7BECE2B7B2092BC</div>
+    </div>
+    <div class="fp-stamp">2026-06-25 12:49 UTC</div>
+  </div>
+
+  <!-- Embeddable badge -->
+  <div class="fingerprint" style="flex-direction:column;align-items:flex-start;gap:10px">
+    <div class="fp-label">Embed this badge in your README</div>
+    <img src="/badge/C.svg" alt="RunCore Certified C" style="height:20px">
+    <code style="display:block;width:100%;box-sizing:border-box;background:#0a1120;color:#8aaaf8;padding:10px;border-radius:6px;font-size:12px;word-break:break-all">[![RunCore Certified C](https://YOUR-RUNCORE-HOST/badge/C.svg)](https://YOUR-RUNCORE-HOST/certification)</code>
+  </div>
+
+  <div class="footer">
+    Generated by <a href="https://github.com/ptpaulinho/RunCore">RunCore v0.9.0</a> ·
+    Methodology: <a href="https://github.com/ptpaulinho/RunCore/blob/main/docs/RUNCORE_SCORE_SPEC.md">RunCore Score™ Spec (open)</a> ·
+    To reproduce: <code>python -m benchmarks.certification --provider ollama</code>
+  </div>
+
+</div>
+<script>
+const scores = [63.9, 63.9, 63.9, 63.9, 63.9, 62.5, 62.5, 62.5, 62.5, 62.5, 65.0, 65.0, 65.0, 65.0, 65.0];
+const labels = scores.map((_, i) => 'Run ' + (i + 1));
+new Chart(document.getElementById('sparkChart'), {
+  type: 'bar',
+  data: {
+    labels,
+    datasets: [{
+      label: 'RunCore Score',
+      data: scores,
+      backgroundColor: scores.map(s => s >= 60 ? 'rgba(34,197,94,0.7)' : s >= 40 ? 'rgba(251,191,36,0.7)' : 'rgba(239,68,68,0.7)'),
+      borderRadius: 4,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ' Score: ' + ctx.raw.toFixed(1) } }
+    },
+    scales: {
+      x: { grid: { color: 'rgba(91,138,247,0.06)' }, ticks: { color: '#475569', font: { size: 10 } } },
+      y: { min: 0, max: 100, grid: { color: 'rgba(91,138,247,0.06)' }, ticks: { color: '#475569', font: { size: 10 } } }
+    }
+  }
+});
+</script>
+</body>
+</html>

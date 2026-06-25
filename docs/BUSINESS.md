@@ -2,9 +2,14 @@
 
 ## O que tens agora
 
+> **Nota de posicionamento (2026):** o RunCore vende-se agora como **o standard de eficiência para
+> agentes de IA** — o produto é a **certificação (RunCore Score™)**, e o engine/guards são o
+> *mecanismo* que dá bom score. Ver [STRATEGY.md](STRATEGY.md) e [GO_TO_MARKET.md](GO_TO_MARKET.md).
+> O modelo de 3 camadas abaixo descreve a tecnologia que sustenta o score.
+
 ### Produto
 
-RunCore é uma **runtime optimization engine para agentes LLM** com 3 camadas:
+RunCore é **o standard de eficiência para agentes de IA**, sustentado por uma runtime engine com 3 camadas:
 
 **Camada 1 — Observabilidade** (o que já têm todos)
 - Capta todas as chamadas LLM e tool calls de qualquer agente

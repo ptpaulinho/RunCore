@@ -1,0 +1,44 @@
+{
+  "overall": 48.5,
+  "grade": "F",
+  "certified": false,
+  "provider": "groq",
+  "model": "llama-3.1-8b-instant",
+  "suite": "all",
+  "n_runs": 24,
+  "n_tasks": 8,
+  "timestamp": "20260625_084607",
+  "confidence_interval_95": [
+    42.4,
+    54.5
+  ],
+  "dimensions": [
+    {
+      "name": "Cost savings",
+      "score": 28.02622572859251,
+      "improvement_pct": 10.009366331640182,
+      "target_pct": 25.0,
+      "passed": false,
+      "baseline": 0.0,
+      "optimized": 0.0
+    },
+    {
+      "name": "Token reduction",
+      "score": 35.03278216074064,
+      "improvement_pct": 10.009366331640182,
+      "target_pct": 20.0,
+      "passed": false,
+      "baseline": 2313.25,
+      "optimized": 2081.7083333333335
+    },
+    {
+      "name": "Task success rate",
+      "score": 100.0,
+      "improvement_pct": 0.0,
+      "target_pct": 0,
+      "passed": true,
+      "baseline": 100.0,
+      "optimized": 100.0
+    }
+  ]
+}
