@@ -10,13 +10,4 @@ services:
       - key: RUNCORE_ENV
         value: production
       - key: RUNCORE_DB_PATH
-        value: /data/cloud.db
-      - key: GROQ_API_KEY
-        sync: false   # set in Render dashboard
-      - key: GEMINI_API_KEY
-        sync: false   # set in Render dashboard
-    disk:
-      name: runcore-data
-      mountPath: /data
-      sizeGB: 1
-    healthCheckPath: /health
+        value: /tmp/cloud.db
