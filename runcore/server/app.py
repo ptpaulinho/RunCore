@@ -3211,3 +3211,409 @@ def dev_checkout(plan: str = "team", tenant: str = "") -> str:
 </div>
 </body>
 </html>"""
+
+
+# ---------------------------------------------------------------------------
+# Auth routes — register, login, logout, session helper
+# ---------------------------------------------------------------------------
+
+from fastapi import Cookie, Form
+from fastapi.responses import RedirectResponse
+
+
+def _get_tenant(session: str | None = Cookie(default=None)) -> dict | None:
+    if not session:
+        return None
+    return _store.get_session(session)
+
+
+def _require_tenant(session: str | None = Cookie(default=None)) -> dict:
+    tenant = _get_tenant(session)
+    if not tenant:
+        raise HTTPException(status_code=302, headers={"Location": "/login"})
+    return tenant
+
+
+@app.get("/login", response_class=HTMLResponse)
+def login_page(error: str = ""):
+    err_html = f'<div style="color:#ef4444;margin-bottom:16px;font-size:.9rem">{error}</div>' if error else ""
+    return f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RunCore — Login</title>
+<style>{_DESIGN_CSS}
+.auth-card{{max-width:420px;margin:80px auto;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:40px}}
+.auth-card h1{{font-size:1.5rem;font-weight:800;margin:0 0 6px}}
+.auth-card p{{color:var(--text2);margin:0 0 28px;font-size:.9rem}}
+.form-group{{margin-bottom:18px}}
+.form-group label{{display:block;font-size:.82rem;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}}
+.form-group input{{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:.95rem;box-sizing:border-box;outline:none}}
+.form-group input:focus{{border-color:var(--accent)}}
+.btn-primary{{width:100%;background:linear-gradient(135deg,#5577f3,#4a6cf5);color:#fff;border:none;border-radius:10px;padding:12px;font-size:1rem;font-weight:600;cursor:pointer;margin-top:8px}}
+.auth-footer{{text-align:center;margin-top:20px;font-size:.85rem;color:var(--text2)}}
+.auth-footer a{{color:var(--accent);text-decoration:none}}
+</style></head><body>
+<div class="auth-card">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:28px">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#5577f3" stroke-width="2.5"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    <span style="font-weight:800;font-size:1.2rem">RunCore</span>
+  </div>
+  <h1>Welcome back</h1>
+  <p>Sign in to your company account</p>
+  {err_html}
+  <form method="post" action="/login">
+    <div class="form-group"><label>Email</label><input type="email" name="email" required autofocus></div>
+    <div class="form-group"><label>Password</label><input type="password" name="password" required></div>
+    <button class="btn-primary" type="submit">Sign in →</button>
+  </form>
+  <div class="auth-footer">Don't have an account? <a href="/register">Create one free →</a></div>
+</div>
+</body></html>"""
+
+
+@app.post("/login")
+def login_submit(email: str = Form(...), password: str = Form(...)):
+    result = _store.login_tenant(email, password)
+    if not result:
+        return RedirectResponse("/login?error=Invalid+email+or+password", status_code=303)
+    resp = RedirectResponse("/app/dashboard", status_code=303)
+    resp.set_cookie("session", result["token"], max_age=30*24*3600, httponly=True, samesite="lax")
+    return resp
+
+
+@app.get("/register", response_class=HTMLResponse)
+def register_page(error: str = ""):
+    err_html = f'<div style="color:#ef4444;margin-bottom:16px;font-size:.9rem">{error}</div>' if error else ""
+    return f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RunCore — Create Account</title>
+<style>{_DESIGN_CSS}
+.auth-card{{max-width:440px;margin:60px auto;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:40px}}
+.auth-card h1{{font-size:1.5rem;font-weight:800;margin:0 0 6px}}
+.auth-card p{{color:var(--text2);margin:0 0 28px;font-size:.9rem}}
+.form-group{{margin-bottom:18px}}
+.form-group label{{display:block;font-size:.82rem;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}}
+.form-group input{{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:.95rem;box-sizing:border-box;outline:none}}
+.form-group input:focus{{border-color:var(--accent)}}
+.btn-primary{{width:100%;background:linear-gradient(135deg,#5577f3,#4a6cf5);color:#fff;border:none;border-radius:10px;padding:12px;font-size:1rem;font-weight:600;cursor:pointer;margin-top:8px}}
+.auth-footer{{text-align:center;margin-top:20px;font-size:.85rem;color:var(--text2)}}
+.auth-footer a{{color:var(--accent);text-decoration:none}}
+</style></head><body>
+<div class="auth-card">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:28px">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#5577f3" stroke-width="2.5"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    <span style="font-weight:800;font-size:1.2rem">RunCore</span>
+  </div>
+  <h1>Create your account</h1>
+  <p>Free forever — certify your first agent in minutes</p>
+  {err_html}
+  <form method="post" action="/register">
+    <div class="form-group"><label>Company name</label><input type="text" name="company_name" placeholder="Acme Corp" required autofocus></div>
+    <div class="form-group"><label>Email</label><input type="email" name="email" required></div>
+    <div class="form-group"><label>Password</label><input type="password" name="password" required minlength="8" placeholder="8+ characters"></div>
+    <button class="btn-primary" type="submit">Create account →</button>
+  </form>
+  <div class="auth-footer">Already have an account? <a href="/login">Sign in →</a></div>
+</div>
+</body></html>"""
+
+
+@app.post("/register")
+def register_submit(company_name: str = Form(...), email: str = Form(...), password: str = Form(...)):
+    if len(password) < 8:
+        return RedirectResponse("/register?error=Password+must+be+8%2B+characters", status_code=303)
+    try:
+        _store.register_tenant(email, password, company_name)
+    except ValueError as e:
+        return RedirectResponse(f"/register?error={str(e).replace(' ', '+')}", status_code=303)
+    result = _store.login_tenant(email, password)
+    resp = RedirectResponse("/app/dashboard", status_code=303)
+    resp.set_cookie("session", result["token"], max_age=30*24*3600, httponly=True, samesite="lax")
+    return resp
+
+
+@app.get("/logout")
+def logout(session: str | None = Cookie(default=None)):
+    if session:
+        _store.delete_session(session)
+    resp = RedirectResponse("/login", status_code=303)
+    resp.delete_cookie("session")
+    return resp
+
+
+# ---------------------------------------------------------------------------
+# Company dashboard — isolated per tenant
+# ---------------------------------------------------------------------------
+
+@app.get("/app/dashboard", response_class=HTMLResponse)
+def company_dashboard(session: str | None = Cookie(default=None)):
+    tenant = _get_tenant(session)
+    if not tenant:
+        return RedirectResponse("/login", status_code=303)
+
+    company = tenant.get("company_name") or tenant.get("name", "Your Company")
+    certs = _store.list_certifications(tenant["id"])
+
+    cert_rows = ""
+    if not certs:
+        cert_rows = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted)">No certifications yet. Run your first one below.</td></tr>'
+    else:
+        grade_colors = {"A+": "#22c55e", "A": "#22c55e", "B+": "#60a5fa", "B": "#6488f5", "C": "#fbbf24", "F": "#ef4444"}
+        for c in certs:
+            grade = c.get("grade", "?")
+            col = grade_colors.get(grade, "#94a3b8")
+            cert_chip = '<span style="color:#22c55e;font-size:.75rem;font-weight:600">✓ Certified</span>' if c.get("certified") else '<span style="color:#94a3b8;font-size:.75rem">not certified</span>'
+            report_link = f'<a href="/certification/reports/{c.get("html_file","")}" style="color:var(--accent);font-size:.8rem">view →</a>' if c.get("html_file") else "—"
+            cert_rows += f"""<tr>
+              <td><span style="background:{col};color:#06101f;font-weight:700;font-size:.8rem;padding:2px 8px;border-radius:5px">{grade}</span></td>
+              <td style="font-weight:700">{c.get('score',0):.1f}</td>
+              <td>{c.get('provider','?')}</td>
+              <td style="font-size:.85rem">{c.get('model','?')}</td>
+              <td style="font-size:.82rem">{c.get('suite','?')}</td>
+              <td>{cert_chip}</td>
+              <td>{report_link}</td>
+            </tr>"""
+
+    return f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RunCore — {company}</title>
+<style>{_DESIGN_CSS}
+table{{width:100%;border-collapse:collapse}}
+th{{text-align:left;font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:10px 12px;border-bottom:1px solid var(--border)}}
+td{{padding:12px;border-bottom:1px solid var(--border)22;vertical-align:middle}}
+tr:hover td{{background:var(--surface)}}
+.run-btn{{background:linear-gradient(135deg,#5577f3,#4a6cf5);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:.85rem;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block}}
+</style></head><body>
+<nav class="nav">
+  <div class="nav-brand">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    <span>RunCore</span>
+  </div>
+  <div class="nav-links">
+    <a href="/app/dashboard" class="nav-link active">{company}</a>
+    <a href="/leaderboard" class="nav-link">Leaderboard</a>
+    <a href="/app/settings" class="nav-link">Settings</a>
+    <a href="/logout" class="nav-link" style="color:#ef4444">Sign out</a>
+  </div>
+</nav>
+<main class="container" style="max-width:960px;padding-top:40px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:32px">
+    <div>
+      <h1 style="margin:0 0 4px;font-size:1.8rem">{company}</h1>
+      <div style="color:var(--text2);font-size:.9rem">Plan: <strong style="color:var(--text)">{tenant.get('plan','free').title()}</strong> · API key: <code style="background:var(--surface);padding:2px 8px;border-radius:4px;font-size:.8rem">{tenant.get('api_key','')[:20]}…</code></div>
+    </div>
+    <a href="/app/certify" class="run-btn">+ Run Certification</a>
+  </div>
+
+  <div class="card" style="padding:0">
+    <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <h2 style="margin:0;font-size:1rem;font-weight:700">Certification History</h2>
+      <span style="color:var(--muted);font-size:.82rem">{len(certs)} run{"s" if len(certs)!=1 else ""}</span>
+    </div>
+    <table>
+      <thead><tr><th>Grade</th><th>Score</th><th>Provider</th><th>Model</th><th>Suite</th><th>Status</th><th>Report</th></tr></thead>
+      <tbody>{cert_rows}</tbody>
+    </table>
+  </div>
+
+  <div class="card" style="margin-top:24px;padding:28px">
+    <h2 style="margin:0 0 8px;font-size:1rem;font-weight:700">Quick Certify via CLI</h2>
+    <p style="color:var(--text2);font-size:.85rem;margin:0 0 14px">Install RunCore and run a certification from your terminal:</p>
+    <div style="background:#0d1117;border-radius:8px;padding:14px 16px;font-family:monospace;font-size:.82rem;color:#e6edf3">
+      pip install runcore<br>
+      export GROQ_API_KEY=your_key<br>
+      runcore certify --provider groq --model llama-3.3-70b-versatile --suite support
+    </div>
+  </div>
+</main>
+</body></html>"""
+
+
+@app.get("/app/settings", response_class=HTMLResponse)
+def company_settings(session: str | None = Cookie(default=None)):
+    tenant = _get_tenant(session)
+    if not tenant:
+        return RedirectResponse("/login", status_code=303)
+    company = tenant.get("company_name") or tenant.get("name", "Your Company")
+    return f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RunCore — Settings</title>
+<style>{_DESIGN_CSS}
+.form-group{{margin-bottom:20px}}
+.form-group label{{display:block;font-size:.82rem;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}}
+.form-group input{{width:100%;max-width:480px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:.9rem;box-sizing:border-box}}
+.btn{{background:linear-gradient(135deg,#5577f3,#4a6cf5);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:.9rem;font-weight:600;cursor:pointer}}
+</style></head><body>
+<nav class="nav">
+  <div class="nav-brand">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    <span>RunCore</span>
+  </div>
+  <div class="nav-links">
+    <a href="/app/dashboard" class="nav-link">{company}</a>
+    <a href="/app/settings" class="nav-link active">Settings</a>
+    <a href="/logout" class="nav-link" style="color:#ef4444">Sign out</a>
+  </div>
+</nav>
+<main class="container" style="max-width:700px;padding-top:40px">
+  <h1 style="margin:0 0 32px;font-size:1.6rem">Account Settings</h1>
+
+  <div class="card" style="padding:28px;margin-bottom:24px">
+    <h2 style="margin:0 0 20px;font-size:1rem;font-weight:700">Company</h2>
+    <div class="form-group"><label>Company name</label><input type="text" value="{company}" readonly></div>
+    <div class="form-group"><label>Email</label><input type="email" value="{tenant.get('email','')}" readonly></div>
+    <div class="form-group"><label>Plan</label><input type="text" value="{tenant.get('plan','free').title()}" readonly></div>
+  </div>
+
+  <div class="card" style="padding:28px;margin-bottom:24px">
+    <h2 style="margin:0 0 8px;font-size:1rem;font-weight:700">RunCore API Key</h2>
+    <p style="color:var(--text2);font-size:.85rem;margin:0 0 14px">Use this key to submit certifications via the API.</p>
+    <div class="form-group"><label>API Key</label>
+      <input type="text" value="{tenant.get('api_key','')}" readonly style="font-family:monospace;font-size:.8rem">
+    </div>
+  </div>
+
+  <div class="card" style="padding:28px">
+    <h2 style="margin:0 0 8px;font-size:1rem;font-weight:700">LLM Provider Keys</h2>
+    <p style="color:var(--text2);font-size:.85rem;margin:0 0 14px">Add your own Groq or Gemini keys to run certifications from the dashboard.</p>
+    <form method="post" action="/app/settings/keys">
+      <div class="form-group"><label>Groq API Key</label><input type="password" name="groq_key" placeholder="gsk_…"></div>
+      <div class="form-group"><label>Gemini API Key</label><input type="password" name="gemini_key" placeholder="AIza…"></div>
+      <button class="btn" type="submit">Save keys</button>
+    </form>
+  </div>
+</main>
+</body></html>"""
+
+
+@app.post("/app/settings/keys")
+def save_company_keys(
+    groq_key: str = Form(default=""),
+    gemini_key: str = Form(default=""),
+    session: str | None = Cookie(default=None),
+):
+    tenant = _get_tenant(session)
+    if not tenant:
+        return RedirectResponse("/login", status_code=303)
+    keys = {}
+    if groq_key.strip():
+        keys["GROQ_API_KEY"] = groq_key.strip()
+    if gemini_key.strip():
+        keys["GEMINI_API_KEY"] = gemini_key.strip()
+    if keys:
+        _config.set_keys(keys)
+    return RedirectResponse("/app/settings?saved=1", status_code=303)
+
+
+@app.get("/app/certify", response_class=HTMLResponse)
+def company_certify_page(session: str | None = Cookie(default=None)):
+    tenant = _get_tenant(session)
+    if not tenant:
+        return RedirectResponse("/login", status_code=303)
+    company = tenant.get("company_name") or tenant.get("name", "")
+    return f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RunCore — Run Certification</title>
+<style>{_DESIGN_CSS}
+.form-group{{margin-bottom:20px}}
+.form-group label{{display:block;font-size:.82rem;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}}
+.form-group select,.form-group input{{width:100%;max-width:400px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:.9rem;box-sizing:border-box}}
+.btn{{background:linear-gradient(135deg,#5577f3,#4a6cf5);color:#fff;border:none;border-radius:8px;padding:12px 28px;font-size:.95rem;font-weight:600;cursor:pointer}}
+</style></head><body>
+<nav class="nav">
+  <div class="nav-brand">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    <span>RunCore</span>
+  </div>
+  <div class="nav-links">
+    <a href="/app/dashboard" class="nav-link">{company}</a>
+    <a href="/logout" class="nav-link" style="color:#ef4444">Sign out</a>
+  </div>
+</nav>
+<main class="container" style="max-width:600px;padding-top:40px">
+  <h1 style="margin:0 0 8px;font-size:1.6rem">Run Certification</h1>
+  <p style="color:var(--text2);margin:0 0 32px">Measures your agent efficiency against the RunCore Score™ open benchmark.</p>
+
+  <div class="card" style="padding:32px">
+    <div style="background:var(--surface);border-radius:10px;padding:14px 18px;margin-bottom:28px;font-size:.85rem;color:var(--text2)">
+      ⚠️ Certification runs real LLM calls against your API key. Takes 5–15 min depending on provider and suite.
+    </div>
+    <div class="form-group">
+      <label>Provider</label>
+      <select id="provider" onchange="updateModels()">
+        <option value="groq">Groq (free)</option>
+        <option value="ollama">Ollama (local)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Model</label>
+      <select id="model">
+        <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile (recommended)</option>
+        <option value="llama-3.1-8b-instant">llama-3.1-8b-instant (fast)</option>
+        <option value="mixtral-8x7b-32768">mixtral-8x7b-32768</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Suite</label>
+      <select id="suite">
+        <option value="support">support (3 tasks, ~5 min)</option>
+        <option value="all">all (8 tasks, ~15 min)</option>
+        <option value="research">research (2 tasks)</option>
+        <option value="coding">coding (2 tasks)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Runs per task</label>
+      <select id="runs">
+        <option value="3">3 runs (quick)</option>
+        <option value="5" selected>5 runs (standard)</option>
+        <option value="10">10 runs (enterprise)</option>
+      </select>
+    </div>
+    <div style="margin-top:8px;font-size:.82rem;color:var(--muted)" id="est">Estimated: ~5 min · 30 LLM calls</div>
+    <button class="btn" style="margin-top:24px;width:100%" onclick="startCert()">Start Certification →</button>
+  </div>
+
+  <div id="status-box" style="display:none;margin-top:24px">
+    <div class="card" style="padding:24px;text-align:center">
+      <div style="font-size:1.5rem;margin-bottom:8px">⏳</div>
+      <div id="status-msg" style="font-weight:600">Starting certification…</div>
+      <div style="color:var(--muted);font-size:.85rem;margin-top:6px">Do not close this window</div>
+    </div>
+  </div>
+</main>
+<script>
+const groqModels = ["llama-3.3-70b-versatile","llama-3.1-8b-instant","mixtral-8x7b-32768","gemma2-9b-it"];
+const ollamaModels = ["qwen2.5:14b","qwen2.5:7b","llama3.1:8b","llama3.2"];
+function updateModels() {{
+  const p = document.getElementById("provider").value;
+  const sel = document.getElementById("model");
+  const models = p === "groq" ? groqModels : ollamaModels;
+  sel.innerHTML = models.map((m,i) => `<option value="${{m}}">${{m}}${{i===0?" (recommended)":""}}</option>`).join("");
+}}
+function startCert() {{
+  const provider = document.getElementById("provider").value;
+  const model = document.getElementById("model").value;
+  const suite = document.getElementById("suite").value;
+  const runs = document.getElementById("runs").value;
+  document.getElementById("status-box").style.display = "block";
+  document.getElementById("status-msg").textContent = "Certification running…";
+  fetch("/certification/run", {{
+    method: "POST",
+    headers: {{"Content-Type":"application/json"}},
+    body: JSON.stringify({{provider, model, suite, runs_per_task: parseInt(runs)}})
+  }}).then(r => r.json()).then(d => {{
+    if (d.run_id) {{
+      const interval = setInterval(() => {{
+        fetch("/runs/" + d.run_id + "/stream").then(r => {{
+          document.getElementById("status-msg").textContent = "Done! Redirecting…";
+          clearInterval(interval);
+          setTimeout(() => window.location.href = "/app/dashboard", 1500);
+        }}).catch(() => {{}});
+      }}, 5000);
+    }}
+  }}).catch(e => {{
+    document.getElementById("status-msg").textContent = "Error: " + e.message;
+  }});
+}}
+</script>
+</body></html>"""

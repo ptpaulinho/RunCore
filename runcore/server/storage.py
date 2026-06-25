@@ -66,6 +66,18 @@ def _conn():
     return _pg_conn() if _POSTGRES else _sqlite_conn()
 
 
+from contextlib import contextmanager
+
+@contextmanager
+def _db():
+    """Context manager that ensures connection is always closed."""
+    con = _conn()
+    try:
+        yield con
+    finally:
+        con.close()
+
+
 def _ph() -> str:
     """SQL placeholder: %s for Postgres, ? for SQLite."""
     return "%s" if _POSTGRES else "?"
@@ -89,6 +101,9 @@ _SQLITE_DDL = """
 CREATE TABLE IF NOT EXISTS tenants (
     id                      TEXT PRIMARY KEY,
     name                    TEXT NOT NULL,
+    email                   TEXT UNIQUE,
+    password_hash           TEXT,
+    company_name            TEXT,
     api_key                 TEXT UNIQUE NOT NULL,
     created_at              TEXT NOT NULL,
     plan                    TEXT NOT NULL DEFAULT 'free',
@@ -116,12 +131,36 @@ CREATE TABLE IF NOT EXISTS traces (
 );
 CREATE INDEX IF NOT EXISTS idx_traces_tenant  ON traces(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_traces_started ON traces(started_at DESC);
+CREATE TABLE IF NOT EXISTS sessions (
+    token       TEXT PRIMARY KEY,
+    tenant_id   TEXT NOT NULL REFERENCES tenants(id),
+    created_at  TEXT NOT NULL,
+    expires_at  TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS certifications (
+    id          TEXT PRIMARY KEY,
+    tenant_id   TEXT NOT NULL REFERENCES tenants(id),
+    provider    TEXT,
+    model       TEXT,
+    suite       TEXT,
+    score       REAL,
+    grade       TEXT,
+    certified   INTEGER,
+    n_runs      INTEGER,
+    timestamp   TEXT,
+    json_data   TEXT,
+    html_file   TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_cert_tenant ON certifications(tenant_id);
 """
 
 _PG_DDL = """
 CREATE TABLE IF NOT EXISTS tenants (
     id                      TEXT PRIMARY KEY,
     name                    TEXT NOT NULL,
+    email                   TEXT UNIQUE,
+    password_hash           TEXT,
+    company_name            TEXT,
     api_key                 TEXT UNIQUE NOT NULL,
     created_at              TEXT NOT NULL,
     plan                    TEXT NOT NULL DEFAULT 'free',
@@ -149,12 +188,32 @@ CREATE TABLE IF NOT EXISTS traces (
 );
 CREATE INDEX IF NOT EXISTS idx_traces_tenant  ON traces(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_traces_started ON traces(started_at DESC);
+CREATE TABLE IF NOT EXISTS sessions (
+    token       TEXT PRIMARY KEY,
+    tenant_id   TEXT NOT NULL REFERENCES tenants(id),
+    created_at  TEXT NOT NULL,
+    expires_at  TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS certifications (
+    id          TEXT PRIMARY KEY,
+    tenant_id   TEXT NOT NULL REFERENCES tenants(id),
+    provider    TEXT,
+    model       TEXT,
+    suite       TEXT,
+    score       REAL,
+    grade       TEXT,
+    certified   INTEGER,
+    n_runs      INTEGER,
+    timestamp   TEXT,
+    json_data   TEXT,
+    html_file   TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_cert_tenant ON certifications(tenant_id);
 """
 
 
 def init_db() -> None:
-    with _lock:
-        con = _conn()
+    with _lock, _db() as con:
         if _POSTGRES:
             cur = con.cursor()
             for stmt in _PG_DDL.strip().split(";"):
@@ -166,7 +225,6 @@ def init_db() -> None:
         else:
             con.executescript(_SQLITE_DDL)
             con.commit()
-        con.close()
 
 
 # ---------------------------------------------------------------------------
@@ -187,8 +245,7 @@ def create_tenant(name: str, plan: str = "free") -> dict:
     now = datetime.now(timezone.utc).isoformat()
     mk = _month_key()
     ph = _ph()
-    with _lock:
-        con = _conn()
+    with _lock, _db() as con:
         if _POSTGRES:
             cur = con.cursor()
             cur.execute(
@@ -205,7 +262,6 @@ def create_tenant(name: str, plan: str = "free") -> dict:
                 (tid, name, api_key, now, plan, mk),
             )
             con.commit()
-        con.close()
     return {
         "id": tid, "name": name, "api_key": api_key,
         "created_at": now, "plan": plan,
@@ -215,8 +271,7 @@ def create_tenant(name: str, plan: str = "free") -> dict:
 
 def get_tenant_by_key(api_key: str) -> dict | None:
     ph = _ph()
-    with _lock:
-        con = _conn()
+    with _lock, _db() as con:
         if _POSTGRES:
             import psycopg2.extras
             con.cursor_factory = psycopg2.extras.RealDictCursor
@@ -226,14 +281,12 @@ def get_tenant_by_key(api_key: str) -> dict | None:
             cur.close()
         else:
             row = con.execute(f"SELECT * FROM tenants WHERE api_key={ph}", (api_key,)).fetchone()
-        con.close()
     return dict(row) if row else None
 
 
 def get_tenant_by_id(tenant_id: str) -> dict | None:
     ph = _ph()
-    with _lock:
-        con = _conn()
+    with _lock, _db() as con:
         if _POSTGRES:
             import psycopg2.extras
             con.cursor_factory = psycopg2.extras.RealDictCursor
@@ -243,13 +296,11 @@ def get_tenant_by_id(tenant_id: str) -> dict | None:
             cur.close()
         else:
             row = con.execute(f"SELECT * FROM tenants WHERE id={ph}", (tenant_id,)).fetchone()
-        con.close()
     return dict(row) if row else None
 
 
 def list_tenants() -> list[dict]:
-    with _lock:
-        con = _conn()
+    with _lock, _db() as con:
         if _POSTGRES:
             import psycopg2.extras
             con.cursor_factory = psycopg2.extras.RealDictCursor
@@ -261,7 +312,6 @@ def list_tenants() -> list[dict]:
             rows = con.execute(
                 "SELECT id,name,created_at,plan FROM tenants ORDER BY created_at DESC"
             ).fetchall()
-        con.close()
     return [dict(r) for r in rows]
 
 
@@ -273,8 +323,7 @@ def upgrade_tenant_plan(
 ) -> None:
     """Set a tenant's plan (and optionally Stripe IDs) after successful checkout."""
     ph = _ph()
-    with _lock:
-        con = _conn()
+    with _lock, _db() as con:
         if _POSTGRES:
             cur = con.cursor()
             cur.execute(
@@ -291,14 +340,12 @@ def upgrade_tenant_plan(
                 (plan, stripe_customer_id, stripe_subscription_id, tenant_id),
             )
             con.commit()
-        con.close()
 
 
 def downgrade_tenant_by_customer(stripe_customer_id: str, plan: str = "free") -> None:
     """Downgrade a tenant (found by Stripe customer ID) to *plan*."""
     ph = _ph()
-    with _lock:
-        con = _conn()
+    with _lock, _db() as con:
         if _POSTGRES:
             cur = con.cursor()
             cur.execute(
@@ -313,7 +360,6 @@ def downgrade_tenant_by_customer(stripe_customer_id: str, plan: str = "free") ->
                 (plan, stripe_customer_id),
             )
             con.commit()
-        con.close()
 
 
 # ---------------------------------------------------------------------------
@@ -363,8 +409,7 @@ def ingest_trace(tenant_id: str, atir_dict: dict) -> str:
         json.dumps(atir_dict),
     )
 
-    with _lock:
-        con = _conn()
+    with _lock, _db() as con:
         _reset_month_counter_if_needed(con, tenant_id, mk)
         if _POSTGRES:
             cur = con.cursor()
@@ -391,7 +436,6 @@ def ingest_trace(tenant_id: str, atir_dict: dict) -> str:
                 (tenant_id,),
             )
             con.commit()
-        con.close()
     return trace_id
 
 
@@ -407,8 +451,7 @@ def get_monthly_usage(tenant_id: str) -> int:
 
 def list_traces(tenant_id: str, limit: int = 100, offset: int = 0) -> list[dict]:
     ph = _ph()
-    with _lock:
-        con = _conn()
+    with _lock, _db() as con:
         if _POSTGRES:
             import psycopg2.extras
             con.cursor_factory = psycopg2.extras.RealDictCursor
@@ -428,14 +471,12 @@ def list_traces(tenant_id: str, limit: int = 100, offset: int = 0) -> list[dict]
                 " FROM traces WHERE tenant_id=? ORDER BY started_at DESC LIMIT ? OFFSET ?",
                 (tenant_id, limit, offset),
             ).fetchall()
-        con.close()
     return [dict(r) for r in rows]
 
 
 def get_trace(tenant_id: str, trace_id: str) -> dict | None:
     ph = _ph()
-    with _lock:
-        con = _conn()
+    with _lock, _db() as con:
         if _POSTGRES:
             import psycopg2.extras
             con.cursor_factory = psycopg2.extras.RealDictCursor
@@ -451,14 +492,12 @@ def get_trace(tenant_id: str, trace_id: str) -> dict | None:
                 "SELECT raw_json FROM traces WHERE id=? AND tenant_id=?",
                 (trace_id, tenant_id),
             ).fetchone()
-        con.close()
     return json.loads(row["raw_json"]) if row else None
 
 
 def tenant_stats(tenant_id: str) -> dict:
     ph = _ph()
-    with _lock:
-        con = _conn()
+    with _lock, _db() as con:
         if _POSTGRES:
             import psycopg2.extras
             con.cursor_factory = psycopg2.extras.RealDictCursor
@@ -484,9 +523,170 @@ def tenant_stats(tenant_id: str) -> dict:
                 " FROM traces WHERE tenant_id=?",
                 (tenant_id,),
             ).fetchone()
-        con.close()
     d = dict(row) if row else {}
     total = d.get("total_traces") or 0
     succ = d.get("successful") or 0
     d["success_rate"] = round(succ / total * 100, 1) if total else 0
     return d
+
+
+# ---------------------------------------------------------------------------
+# Auth — register, login, session management
+# ---------------------------------------------------------------------------
+
+def _hash_password(password: str) -> str:
+    import hashlib, os
+    salt = os.urandom(16).hex()
+    h = hashlib.sha256((salt + password).encode()).hexdigest()
+    return f"{salt}:{h}"
+
+
+def _verify_password(password: str, stored: str) -> bool:
+    import hashlib
+    try:
+        salt, h = stored.split(":", 1)
+        return hashlib.sha256((salt + password).encode()).hexdigest() == h
+    except Exception:
+        return False
+
+
+def register_tenant(email: str, password: str, company_name: str) -> dict:
+    """Create a new tenant account. Returns tenant dict or raises ValueError."""
+    with _lock, _db() as con:
+        ph = "%s" if _POSTGRES else "?"
+        existing = None
+        if _POSTGRES:
+            import psycopg2.extras
+            con.cursor_factory = psycopg2.extras.RealDictCursor
+            cur = con.cursor()
+            cur.execute(f"SELECT id FROM tenants WHERE email={ph}", (email,))
+            existing = cur.fetchone()
+            cur.close()
+        else:
+            existing = con.execute(f"SELECT id FROM tenants WHERE email={ph}", (email,)).fetchone()
+        if existing:
+            raise ValueError("Email already registered")
+
+    tenant_id = str(uuid.uuid4())
+    api_key = f"rc_{secrets.token_urlsafe(32)}"
+    now = datetime.now(timezone.utc).isoformat()
+    pw_hash = _hash_password(password)
+
+    with _lock, _db() as con:
+        ph = "%s" if _POSTGRES else "?"
+        if _POSTGRES:
+            cur = con.cursor()
+            cur.execute(
+                f"INSERT INTO tenants(id,name,email,password_hash,company_name,api_key,created_at,plan,month_key)"
+                f" VALUES({ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph})",
+                (tenant_id, company_name, email, pw_hash, company_name, api_key, now, "free", now[:7]),
+            )
+            con.commit(); cur.close()
+        else:
+            con.execute(
+                "INSERT INTO tenants(id,name,email,password_hash,company_name,api_key,created_at,plan,month_key)"
+                " VALUES(?,?,?,?,?,?,?,?,?)",
+                (tenant_id, company_name, email, pw_hash, company_name, api_key, now, "free", now[:7]),
+            )
+    return {"id": tenant_id, "email": email, "company_name": company_name, "api_key": api_key}
+
+
+def login_tenant(email: str, password: str) -> dict | None:
+    """Verify credentials and return a session token, or None on failure."""
+    with _lock, _db() as con:
+        ph = "%s" if _POSTGRES else "?"
+        if _POSTGRES:
+            import psycopg2.extras
+            con.cursor_factory = psycopg2.extras.RealDictCursor
+            cur = con.cursor()
+            cur.execute(f"SELECT * FROM tenants WHERE email={ph}", (email,))
+            row = cur.fetchone(); cur.close()
+        else:
+            row = con.execute(f"SELECT * FROM tenants WHERE email={ph}", (email,)).fetchone()
+    if not row:
+        return None
+    tenant = dict(row)
+    if not _verify_password(password, tenant.get("password_hash", "")):
+        return None
+
+    token = secrets.token_urlsafe(32)
+    now = datetime.now(timezone.utc).isoformat()
+    from datetime import timedelta
+    expires = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+    with _lock, _db() as con:
+        ph = "%s" if _POSTGRES else "?"
+        if _POSTGRES:
+            cur = con.cursor()
+            cur.execute(f"INSERT INTO sessions(token,tenant_id,created_at,expires_at) VALUES({ph},{ph},{ph},{ph})",
+                        (token, tenant["id"], now, expires))
+            con.commit(); cur.close()
+        else:
+            con.execute("INSERT INTO sessions(token,tenant_id,created_at,expires_at) VALUES(?,?,?,?)",
+                        (token, tenant["id"], now, expires))
+    return {"token": token, "tenant": tenant}
+
+
+def get_session(token: str) -> dict | None:
+    """Return tenant dict for a valid session token, or None."""
+    if not token:
+        return None
+    with _lock, _db() as con:
+        ph = "%s" if _POSTGRES else "?"
+        now = datetime.now(timezone.utc).isoformat()
+        if _POSTGRES:
+            import psycopg2.extras
+            con.cursor_factory = psycopg2.extras.RealDictCursor
+            cur = con.cursor()
+            cur.execute(f"SELECT t.* FROM sessions s JOIN tenants t ON t.id=s.tenant_id"
+                        f" WHERE s.token={ph} AND s.expires_at>{ph}", (token, now))
+            row = cur.fetchone(); cur.close()
+        else:
+            row = con.execute("SELECT t.* FROM sessions s JOIN tenants t ON t.id=s.tenant_id"
+                              " WHERE s.token=? AND s.expires_at>?", (token, now)).fetchone()
+    return dict(row) if row else None
+
+
+def delete_session(token: str) -> None:
+    with _lock, _db() as con:
+        ph = "%s" if _POSTGRES else "?"
+        if _POSTGRES:
+            cur = con.cursor()
+            cur.execute(f"DELETE FROM sessions WHERE token={ph}", (token,))
+            con.commit(); cur.close()
+        else:
+            con.execute("DELETE FROM sessions WHERE token=?", (token,))
+
+
+def save_certification(tenant_id: str, cert: dict, html_file: str = "") -> str:
+    """Persist a certification result for a tenant."""
+    cert_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    with _lock, _db() as con:
+        ph = "%s" if _POSTGRES else "?"
+        vals = (cert_id, tenant_id, cert.get("provider"), cert.get("model"),
+                cert.get("suite"), cert.get("overall"), cert.get("grade"),
+                1 if cert.get("certified") else 0, cert.get("n_runs"),
+                cert.get("timestamp", now), json.dumps(cert), html_file)
+        sql = (f"INSERT INTO certifications(id,tenant_id,provider,model,suite,score,grade,"
+               f"certified,n_runs,timestamp,json_data,html_file) VALUES"
+               f"({ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph})")
+        if _POSTGRES:
+            cur = con.cursor(); cur.execute(sql, vals); con.commit(); cur.close()
+        else:
+            con.execute(sql, vals)
+    return cert_id
+
+
+def list_certifications(tenant_id: str) -> list[dict]:
+    with _lock, _db() as con:
+        ph = "%s" if _POSTGRES else "?"
+        if _POSTGRES:
+            import psycopg2.extras
+            con.cursor_factory = psycopg2.extras.RealDictCursor
+            cur = con.cursor()
+            cur.execute(f"SELECT * FROM certifications WHERE tenant_id={ph} ORDER BY timestamp DESC", (tenant_id,))
+            rows = cur.fetchall(); cur.close()
+        else:
+            rows = con.execute("SELECT * FROM certifications WHERE tenant_id=? ORDER BY timestamp DESC",
+                               (tenant_id,)).fetchall()
+    return [dict(r) for r in rows]
