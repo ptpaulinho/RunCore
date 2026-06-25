@@ -1,4 +1,4 @@
-"""RunCore CLI — AI Agent Runtime Optimization Engine."""
+"""RunCore CLI — The efficiency standard for AI agents."""
 from __future__ import annotations
 
 import json
@@ -14,7 +14,7 @@ from rich import box
 
 app = typer.Typer(
     name="runcore",
-    help="RunCore — AI Agent Runtime Optimization Engine",
+    help="RunCore — The efficiency standard for AI agents. Measure, certify, and prove agent efficiency.",
     add_completion=False,
 )
 console = Console()
@@ -832,6 +832,137 @@ def watch(
                 console.print(f"  [{color}][{alert.severity.value.upper()}][/{color}] {alert.message}")
     else:
         daemon.run()
+
+
+@app.command()
+def certify(
+    provider: str = typer.Option("groq", "--provider", "-p", help="LLM provider: groq | gemini | ollama"),
+    model: Optional[str] = typer.Option(None, "--model", "-m", help="Override model name"),
+    runs: int = typer.Option(5, "--runs", "-r", help="Runs per task (5 = standard certification, 10 = enterprise-grade CI)"),
+    suite: str = typer.Option("all", "--suite", "-s", help="Task suite: support | research | coding | analytics | all"),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Save HTML report to this path"),
+    open_report: bool = typer.Option(True, "--open/--no-open", help="Open HTML report in browser when done"),
+):
+    """Run the RunCore certification suite and generate a signed score report.
+
+    Measures real cost savings (baseline vs guarded) across N runs per task.
+    Produces a RunCore Score™ (0–100) with 95% confidence interval and
+    a tamper-evident SHA-256 fingerprint.
+
+    To reproduce the result on any machine::
+
+        runcore certify --provider groq --runs 5
+
+    Requires the provider's API key in the environment:
+        GROQ_API_KEY, GEMINI_API_KEY, or Ollama running locally.
+    """
+    import os
+    import webbrowser
+    from pathlib import Path as _Path
+
+    # Check provider availability
+    provider_key_map = {
+        "groq": "GROQ_API_KEY",
+        "gemini": "GEMINI_API_KEY",
+    }
+    if provider in provider_key_map:
+        key_var = provider_key_map[provider]
+        if not os.environ.get(key_var):
+            console.print(f"[red]{key_var} not set.[/red]")
+            console.print(f"Get a free key at: [cyan]{'https://console.groq.com' if provider == 'groq' else 'https://aistudio.google.com'}[/cyan]")
+            raise typer.Exit(1)
+    elif provider == "ollama":
+        try:
+            import httpx
+            httpx.get("http://localhost:11434/api/tags", timeout=2)
+        except Exception:
+            console.print("[red]Ollama not reachable at localhost:11434.[/red]")
+            console.print("Start it with: [cyan]ollama serve[/cyan]")
+            raise typer.Exit(1)
+        # Warn about models known to lack native tool calling
+        _no_tools = {"mistral", "mistral:7b", "mistral:latest", "llama3.2", "llama3.2:latest",
+                     "phi3", "phi3:latest", "gemma2:2b", "gemma2"}
+        _m = (model or "").lower()
+        if _m in _no_tools or any(_m.startswith(x) for x in ("mistral:", "phi3:", "gemma2:")):
+            console.print(f"[yellow]Warning: {model} may not support native tool calling.[/yellow]")
+            console.print("[yellow]Recommended models with tool calling: llama3.1:8b, qwen2.5:7b, llama3.3:70b[/yellow]")
+
+    import sys, os as _os
+    _repo = _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+    if _repo not in sys.path:
+        sys.path.insert(0, _repo)
+    from benchmarks.tasks import ALL_TASKS
+    suite_tasks = [t for ts in ALL_TASKS.values() for t in ts] if suite == "all" else ALL_TASKS.get(suite, [])
+    n_llm_calls = len(suite_tasks) * runs * 2
+
+    console.print(Panel.fit(
+        f"[bold]RunCore Certification[/bold]\n\n"
+        f"Provider   [cyan]{provider}[/cyan]  {'(' + model + ')' if model else ''}\n"
+        f"Suite      [cyan]{suite}[/cyan]  ({len(suite_tasks)} tasks)\n"
+        f"Runs/task  [cyan]{runs}[/cyan]\n"
+        f"LLM calls  [cyan]{n_llm_calls}[/cyan]  (baseline + guarded × {runs})\n\n"
+        f"[dim]This may take a few minutes depending on provider speed.[/dim]",
+        title="[bold blue]RunCore Score™[/bold blue]",
+    ))
+
+    try:
+        from benchmarks.certification import run_certification, save_cert
+    except ImportError:
+        console.print("[red]benchmarks package not found. Run from the RunCore project root.[/red]")
+        raise typer.Exit(1)
+
+    with console.status(f"[bold blue]Running certification ({n_llm_calls} LLM calls)…[/bold blue]"):
+        score = run_certification(
+            provider_name=provider,
+            model=model,
+            runs_per_task=runs,
+            suite=suite,
+            verbose=False,
+        )
+
+    # Print score
+    grade_colors = {"A+": "bold green", "A": "green", "B+": "cyan", "B": "blue", "C": "yellow", "F": "red"}
+    grade_color = grade_colors.get(score.grade, "white")
+    cert_color = "green" if score.certified else "red"
+    cert_icon = "✅" if score.certified else "❌"
+
+    console.print()
+    console.print(Panel(
+        f"[{grade_color}]{score.overall:.1f}[/{grade_color}] [dim]/100[/dim]  "
+        f"[{grade_color}]Grade {score.grade}[/{grade_color}]  "
+        f"[{cert_color}]{cert_icon} {'RunCore Certified' if score.certified else 'Not Certified'}[/{cert_color}]\n\n"
+        f"[dim]95% CI: [{score.confidence_interval_95[0]:.1f} — {score.confidence_interval_95[1]:.1f}]  "
+        f"· {score.n_runs} runs · {score.n_tasks} tasks[/dim]",
+        title="[bold]RunCore Score™[/bold]",
+    ))
+
+    table = Table(box=box.SIMPLE, show_header=True, header_style="bold dim")
+    table.add_column("Dimension", style="cyan")
+    table.add_column("Score", justify="right")
+    table.add_column("Improvement", justify="right")
+    table.add_column("Target", justify="right")
+    table.add_column("", justify="left")
+
+    for d in score.dimensions:
+        passed_str = "[green]✓ PASS[/green]" if d.passed else "[yellow]⚠ MISS[/yellow]"
+        table.add_row(
+            d.name,
+            f"{d.score:.0f}/100",
+            f"+{d.improvement_pct:.1f}%" if d.improvement_pct >= 0 else f"{d.improvement_pct:.1f}%",
+            f"{d.target_pct:.0f}%" if d.target_pct > 0 else "—",
+            passed_str,
+        )
+    console.print(table)
+
+    out_path = save_cert(score, _Path(output) if output else None)
+    console.print(f"[bold]Report saved →[/bold] [cyan]{out_path}[/cyan]")
+    console.print(f"[bold]Score JSON  →[/bold] [cyan]{out_path.with_suffix('.json')}[/cyan]")
+    console.print(f"[dim]Fingerprint: {__import__('hashlib').sha256(__import__('json').dumps({'overall': score.overall, 'provider': score.provider, 'model': score.model, 'n_runs': score.n_runs, 'timestamp': score.timestamp}, sort_keys=True).encode()).hexdigest()[:16].upper()}[/dim]")
+
+    if open_report:
+        webbrowser.open(out_path.as_uri())
+
+    raise typer.Exit(0 if score.certified else 1)
 
 
 if __name__ == "__main__":
