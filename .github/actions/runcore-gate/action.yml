@@ -1,0 +1,67 @@
+name: "RunCore CI gate"
+description: "Fail the build when an AI agent regresses — more expensive or less reliable than the committed baseline."
+branding:
+  icon: "shield"
+  color: "blue"
+
+inputs:
+  provider:
+    description: "LLM provider (groq | gemini | ollama)"
+    required: false
+    default: "groq"
+  model:
+    description: "Model override (optional)"
+    required: false
+    default: ""
+  suite:
+    description: "Task suite (support | research | coding | all)"
+    required: false
+    default: "support"
+  runs:
+    description: "Runs per task"
+    required: false
+    default: "3"
+  baseline:
+    description: "Path to the committed baseline file"
+    required: false
+    default: ".runcore/ci_baseline.json"
+  max-cost-increase:
+    description: "Fail if cost/run rises more than this percent"
+    required: false
+    default: "10"
+  max-success-drop:
+    description: "Fail if success rate drops more than this many points"
+    required: false
+    default: "5"
+  runcore-version:
+    description: "runcore version spec to install (e.g. ==0.11.0)"
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    - name: Install RunCore
+      shell: bash
+      run: pip install "runcore${{ inputs.runcore-version }}[server]"
+    - name: Run RunCore CI gate
+      shell: bash
+      run: |
+        runcore ci \
+          --provider "${{ inputs.provider }}" \
+          ${{ inputs.model && format('--model "{0}"', inputs.model) || '' }} \
+          --suite "${{ inputs.suite }}" \
+          --runs "${{ inputs.runs }}" \
+          --baseline "${{ inputs.baseline }}" \
+          --max-cost-increase "${{ inputs.max-cost-increase }}" \
+          --max-success-drop "${{ inputs.max-success-drop }}"
+    - name: Upload CI result
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: runcore-ci-result
+        path: .runcore/ci_result.json
+        if-no-files-found: ignore

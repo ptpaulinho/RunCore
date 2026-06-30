@@ -2331,64 +2331,60 @@ def start_page() -> str:
 </nav>
 <main class="container" style="max-width:960px">
   <div class="hero">
-    <h1>Certify your AI agent in 3 steps</h1>
-    <p>RunCore Score™ measures real efficiency — cost savings, token reduction, and task success — against a reproducible open benchmark.</p>
-    <a href="/leaderboard" class="cta">View the leaderboard →</a>
+    <h1>Stop your AI agent burning money.</h1>
+    <p>RunCore wraps any agent, cuts the waste — duplicate tool calls, bloated context, runaway loops — and <strong>proves task success didn't drop</strong>. Gate it in CI before you ship.</p>
+    <a href="/leaderboard" class="cta">See the leaderboard →</a>
   </div>
 
   <div class="steps">
     <div class="step">
       <div class="step-num">1</div>
-      <h3>Install RunCore</h3>
-      <p>Requires Python 3.10+ and a free API key from Groq or Ollama running locally.</p>
+      <h3>Wrap your agent</h3>
+      <p>Any provider (OpenAI, Anthropic, Groq, local), any framework. One line turns on the runtime guards — no rewrite.</p>
       <div class="code-block">pip install runcore</div>
-      <div class="providers">
-        <span class="provider-chip">🆓 Groq (free)</span>
-        <span class="provider-chip">🏠 Ollama (local)</span>
-        <span class="provider-chip">🔑 Gemini (free tier)</span>
-      </div>
+      <div class="code-block">with runcore.capture("agent",<br>&nbsp;&nbsp;guards=runcore.GuardConfig()):<br>&nbsp;&nbsp;&nbsp;&nbsp;my_agent.run(task)</div>
     </div>
 
     <div class="step">
       <div class="step-num">2</div>
-      <h3>Set your API key</h3>
-      <p>Get a free Groq key at <strong>console.groq.com</strong> — no credit card needed.</p>
-      <div class="code-block">export GROQ_API_KEY=your_key_here</div>
-      <p style="margin-top:12px">Or use Ollama locally — no key needed:</p>
-      <div class="code-block">ollama pull qwen2.5:7b</div>
+      <h3>See the savings</h3>
+      <p>RunCore reports exactly what it cut — tokens, cost — with a check that success held.</p>
+      <div class="code-block">run.savings.summary_line()<br># saved 27% tokens, $0.0041/run,<br># success preserved</div>
+      <p style="margin-top:12px">Measured on real runs: <strong>13–28% fewer tokens</strong>, success preserved.</p>
     </div>
 
     <div class="step">
       <div class="step-num">3</div>
-      <h3>Run certification</h3>
-      <p>Takes ~5 minutes. Produces a signed HTML report with RunCore Score™ and SHA-256 fingerprint.</p>
-      <div class="code-block">runcore certify \\<br>  --provider groq \\<br>  --model llama-3.3-70b-versatile \\<br>  --suite support</div>
+      <h3>Gate it in CI</h3>
+      <p>Fail the build when the agent regresses — more expensive or less reliable — before it reaches production.</p>
+      <div class="code-block">runcore ci --update-baseline   # once<br>runcore ci                     # every PR</div>
+      <a href="https://github.com/ptpaulinho/RunCore/blob/main/docs/CI_GATE.md" style="color:var(--accent);text-decoration:none;font-size:.85rem;font-weight:600">CI gate guide →</a>
     </div>
   </div>
 
   <div class="card" style="margin:40px 0;padding:32px">
     <h2 style="margin:0 0 8px;font-size:1.3rem">What you get</h2>
-    <p style="color:var(--text2);margin:0 0 24px">Every certification produces a tamper-evident report you can share, embed, or submit to the public leaderboard.</p>
+    <p style="color:var(--text2);margin:0 0 24px">A runtime that saves money automatically — plus the proof to show customers.</p>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px">
       <div style="background:var(--surface);border-radius:10px;padding:18px">
+        <div style="font-size:1.5rem;margin-bottom:6px">✂️</div>
+        <div style="font-weight:600;margin-bottom:4px">Automatic savings</div>
+        <div style="color:var(--text2);font-size:.85rem">Guards cut duplicate calls, context bloat & loops at runtime</div>
+      </div>
+      <div style="background:var(--surface);border-radius:10px;padding:18px">
+        <div style="font-size:1.5rem;margin-bottom:6px">🛡️</div>
+        <div style="font-weight:600;margin-bottom:4px">No-regression proof</div>
+        <div style="color:var(--text2);font-size:.85rem">Every cut is checked against task success — no silent breakage</div>
+      </div>
+      <div style="background:var(--surface);border-radius:10px;padding:18px">
+        <div style="font-size:1.5rem;margin-bottom:6px">⚙️</div>
+        <div style="font-weight:600;margin-bottom:4px">CI gate</div>
+        <div style="color:var(--text2);font-size:.85rem">GitHub Action fails the build on cost/quality regression</div>
+      </div>
+      <div style="background:var(--surface);border-radius:10px;padding:18px">
         <div style="font-size:1.5rem;margin-bottom:6px">📊</div>
-        <div style="font-weight:600;margin-bottom:4px">RunCore Score™</div>
-        <div style="color:var(--text2);font-size:.85rem">0–100 score across cost, tokens, and task success</div>
-      </div>
-      <div style="background:var(--surface);border-radius:10px;padding:18px">
-        <div style="font-size:1.5rem;margin-bottom:6px">🔒</div>
-        <div style="font-weight:600;margin-bottom:4px">SHA-256 fingerprint</div>
-        <div style="color:var(--text2);font-size:.85rem">Tamper-evident — anyone can verify your result</div>
-      </div>
-      <div style="background:var(--surface);border-radius:10px;padding:18px">
-        <div style="font-size:1.5rem;margin-bottom:6px">🏅</div>
-        <div style="font-weight:600;margin-bottom:4px">Embeddable badge</div>
-        <div style="color:var(--text2);font-size:.85rem">Add to your README or docs</div>
-      </div>
-      <div style="background:var(--surface);border-radius:10px;padding:18px">
-        <div style="font-size:1.5rem;margin-bottom:6px">📋</div>
-        <div style="font-weight:600;margin-bottom:4px">Open methodology</div>
-        <div style="color:var(--text2);font-size:.85rem">Every formula is public — no black box</div>
+        <div style="font-weight:600;margin-bottom:4px">RunCore Score™ + badge</div>
+        <div style="color:var(--text2);font-size:.85rem">Reproducible 0–100 proof to show customers — optional</div>
       </div>
     </div>
   </div>

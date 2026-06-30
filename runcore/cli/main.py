@@ -965,5 +965,133 @@ def certify(
     raise typer.Exit(0 if score.certified else 1)
 
 
+@app.command()
+def ci(
+    provider: str = typer.Option("groq", "--provider", "-p", help="LLM provider: groq | gemini | ollama"),
+    model: Optional[str] = typer.Option(None, "--model", "-m", help="Override model name"),
+    suite: str = typer.Option("support", "--suite", "-s", help="Task suite: support | research | coding | all"),
+    runs: int = typer.Option(3, "--runs", "-r", help="Runs per task"),
+    baseline_path: str = typer.Option(".runcore/ci_baseline.json", "--baseline", help="Path to the known-good baseline file (commit this)"),
+    update_baseline: bool = typer.Option(False, "--update-baseline", help="Record current metrics as the new baseline and exit 0"),
+    max_cost_increase: float = typer.Option(10.0, "--max-cost-increase", help="Fail if cost/run rises more than this %"),
+    max_success_drop: float = typer.Option(5.0, "--max-success-drop", help="Fail if success rate drops more than this many points"),
+    min_success: float = typer.Option(0.0, "--min-success", help="Absolute success-rate floor 0–1 (0 = ignore)"),
+):
+    """CI gate — run the agent under guards and FAIL (exit 1) if it regressed.
+
+    The wedge: catch cost/quality regressions before they ship.
+
+      runcore ci --update-baseline      # record current as known-good; commit .runcore/ci_baseline.json
+      runcore ci                        # PR check: non-zero exit if the agent got more expensive or less reliable
+
+    Requires the provider key in the environment (e.g. GROQ_API_KEY).
+    """
+    import os, sys, json as _json
+    from pathlib import Path as _Path
+
+    key_map = {"groq": "GROQ_API_KEY", "gemini": "GEMINI_API_KEY"}
+    if provider in key_map and not os.environ.get(key_map[provider]):
+        console.print(f"[red]{key_map[provider]} not set.[/red]")
+        raise typer.Exit(2)
+
+    _repo = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    if _repo not in sys.path:
+        sys.path.insert(0, _repo)
+    try:
+        from benchmarks.tasks import ALL_TASKS
+        from benchmarks.runner import run_one
+    except ImportError:
+        console.print("[red]benchmarks package not found. Run from the RunCore project root.[/red]")
+        raise typer.Exit(2)
+
+    tasks = [t for ts in ALL_TASKS.values() for t in ts] if suite == "all" else ALL_TASKS.get(suite, [])
+    if not tasks:
+        console.print(f"[red]Unknown suite: {suite}[/red]")
+        raise typer.Exit(2)
+
+    # Run guarded (the production config) and collect absolute metrics.
+    costs, tokens, successes, n = [], [], 0, 0
+    with console.status(f"[bold blue]CI run — {provider}/{suite}, {len(tasks)} tasks × {runs}…[/bold blue]"):
+        for task in tasks:
+            for _ in range(runs):
+                try:
+                    run, trace = run_one(task, provider, model, with_guards=True)
+                    costs.append(trace.aggregates.total_cost_usd)
+                    tokens.append(trace.aggregates.total_tokens)
+                    successes += 1 if run.success else 0
+                    n += 1
+                except Exception as exc:
+                    console.print(f"[yellow]run error ({task.id}): {exc}[/yellow]")
+
+    if n == 0:
+        console.print("[red]No runs completed — check provider configuration.[/red]")
+        raise typer.Exit(2)
+
+    cur = {
+        "avg_cost_per_run": sum(costs) / n,
+        "avg_tokens_per_run": sum(tokens) / n,
+        "success_rate": successes / n,
+        "provider": provider, "model": model, "suite": suite, "runs": runs, "n": n,
+    }
+
+    bp = _Path(baseline_path)
+    if update_baseline:
+        bp.parent.mkdir(parents=True, exist_ok=True)
+        bp.write_text(_json.dumps(cur, indent=2))
+        console.print(f"[green]Baseline saved →[/green] [cyan]{bp}[/cyan]  "
+                      f"(cost/run ${cur['avg_cost_per_run']:.6f}, {cur['avg_tokens_per_run']:.0f} tok, "
+                      f"success {cur['success_rate']*100:.0f}%)")
+        console.print("[dim]Commit this file so future CI runs compare against it.[/dim]")
+        raise typer.Exit(0)
+
+    if not bp.exists():
+        console.print(f"[red]No baseline at {bp}.[/red] Create one with: [cyan]runcore ci --update-baseline[/cyan]")
+        raise typer.Exit(2)
+    base = _json.loads(bp.read_text())
+
+    # Free providers report $0 — fall back to tokens for the cost gate.
+    if base.get("avg_cost_per_run", 0) > 0:
+        cost_inc = (cur["avg_cost_per_run"] - base["avg_cost_per_run"]) / base["avg_cost_per_run"] * 100
+        cost_label = "cost/run"
+    else:
+        b_tok = max(base.get("avg_tokens_per_run", 0), 1e-9)
+        cost_inc = (cur["avg_tokens_per_run"] - b_tok) / b_tok * 100
+        cost_label = "tokens/run (free provider)"
+    success_drop_pp = (base["success_rate"] - cur["success_rate"]) * 100
+
+    fails = []
+    if cost_inc > max_cost_increase:
+        fails.append(f"{cost_label} +{cost_inc:.1f}% > {max_cost_increase:.0f}% allowed")
+    if success_drop_pp > max_success_drop:
+        fails.append(f"success -{success_drop_pp:.1f}pp > {max_success_drop:.0f}pp allowed")
+    if min_success > 0 and cur["success_rate"] < min_success:
+        fails.append(f"success {cur['success_rate']*100:.0f}% < floor {min_success*100:.0f}%")
+
+    table = Table(box=box.SIMPLE, show_header=True, header_style="bold dim", title="RunCore CI gate")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Baseline", justify="right")
+    table.add_column("Current", justify="right")
+    table.add_column("Delta", justify="right")
+    table.add_row("cost/run", f"${base['avg_cost_per_run']:.6f}", f"${cur['avg_cost_per_run']:.6f}",
+                  f"{cost_inc:+.1f}%")
+    table.add_row("tokens/run", f"{base.get('avg_tokens_per_run',0):.0f}", f"{cur['avg_tokens_per_run']:.0f}", "")
+    table.add_row("success", f"{base['success_rate']*100:.0f}%", f"{cur['success_rate']*100:.0f}%",
+                  f"{-success_drop_pp:+.1f}pp")
+    console.print(table)
+
+    _Path(".runcore").mkdir(parents=True, exist_ok=True)
+    _Path(".runcore/ci_result.json").write_text(_json.dumps(
+        {"baseline": base, "current": cur, "cost_increase_pct": cost_inc,
+         "success_drop_pp": success_drop_pp, "passed": not fails, "failures": fails}, indent=2))
+
+    if fails:
+        console.print(Panel("\n".join("✗ " + f for f in fails),
+                            title="[bold red]REGRESSION — build failed[/bold red]", border_style="red"))
+        raise typer.Exit(1)
+    console.print(Panel("✓ No regression — cost and success within thresholds.",
+                        title="[bold green]CI PASSED[/bold green]", border_style="green"))
+    raise typer.Exit(0)
+
+
 if __name__ == "__main__":
     app()
