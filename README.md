@@ -1,22 +1,28 @@
 # RunCore
 
-**The efficiency standard for AI agents.**
+**The cost-control runtime for AI agents.**
 
 [![CI](https://github.com/ptpaulinho/RunCore/actions/workflows/ci.yml/badge.svg)](https://github.com/ptpaulinho/RunCore/actions)
 [![PyPI](https://img.shields.io/pypi/v/runcore)](https://pypi.org/project/runcore/)
 [![Python](https://img.shields.io/pypi/pyversions/runcore)](https://pypi.org/project/runcore/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 
-> **Prove your AI agent isn't burning money. Get a RunCore Score™ — the open, verifiable measure of agent efficiency.**
+> **Your AI agent burns money in silence. RunCore catches the waste — duplicate tool calls, bloated context, runaway loops — cuts it automatically, and proves your agent didn't get dumber. In CI, before you ship.**
 
-Every agent benchmark today (SWE-Bench, GAIA, Terminal-Bench) scores *whether* an agent can do the task — and **ignores what it costs**. An 88% score at $50/task looks identical to 88% at $0.50/task. RunCore closes that gap with the **RunCore Score™**: a single 0–100 number that certifies how much successful work an agent delivers per dollar — fully reproducible and SHA-256 fingerprinted.
+LLM agents waste 20–60% of their spend on duplicate tool calls, ever-growing context, and undetected loops — with zero quality benefit. RunCore wraps any agent (any provider, any framework), **intercepts that waste at runtime**, and reports exactly how much it saved — with a hard check that task success didn't drop.
 
+```python
+import runcore
+
+with runcore.capture("my_agent", guards=runcore.GuardConfig()) as run:
+    my_agent.run(task)          # any LLM agent — OpenAI, Anthropic, Groq, local
+
+print(run.savings.summary_line())   # "saved 27% tokens, $0.0041/run, success preserved"
 ```
-pip install runcore        # measure & certify your agent
-runcore certify --provider groq
-```
 
-The score is earned by RunCore's runtime engine, which blocks the waste that tanks efficiency — duplicate tool calls, bloated context, and infinite loops — before it ever reaches the API.
+Run it in **CI to fail the build when an agent regresses** — more expensive or less reliable — before it reaches production.
+
+> Need a number to show customers? RunCore also produces a reproducible **RunCore Score™** (0–100) and a public leaderboard — proof you can put in a README or RFP. But the product is the runtime that *saves* the money, not the badge.
 
 - 📊 **[RunCore Score™ Methodology](docs/RUNCORE_SCORE_SPEC.md)** — open, auditable, no hidden weights
 - 🏆 **Public leaderboard** — agents ranked by efficiency (`/leaderboard`)

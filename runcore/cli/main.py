@@ -1,4 +1,4 @@
-"""RunCore CLI — The efficiency standard for AI agents."""
+"""RunCore CLI — the cost-control runtime for AI agents."""
 from __future__ import annotations
 
 import json
@@ -14,7 +14,7 @@ from rich import box
 
 app = typer.Typer(
     name="runcore",
-    help="RunCore — The efficiency standard for AI agents. Measure, certify, and prove agent efficiency.",
+    help="RunCore — cost-control runtime for AI agents. Cut duplicate calls, context bloat and loops automatically; prove success didn't drop; gate it in CI.",
     add_completion=False,
 )
 console = Console()

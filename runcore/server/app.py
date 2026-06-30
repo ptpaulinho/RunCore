@@ -1029,7 +1029,7 @@ def dashboard() -> str:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>RunCore — The efficiency standard for AI agents</title>
+<title>RunCore — cost-control runtime for AI agents</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>{_DESIGN_CSS}</style>
 </head>
