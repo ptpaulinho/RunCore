@@ -20,7 +20,7 @@ from runcore.sdk.capture import Capture
 def test_guard_config_defaults():
     cfg = GuardConfig()
     assert cfg.dedup_enabled is True
-    assert cfg.dedup_scope == "turn"
+    assert cfg.dedup_scope == "session"
     assert cfg.loop_break_enabled is True
     assert cfg.loop_break_threshold == pytest.approx(0.40)
     assert cfg.loop_break_min_calls == 4

@@ -116,10 +116,22 @@ class HttpAgentProvider(BaseProvider):
                     "content": m.content,
                 })
             elif m.tool_calls:
+                # OpenAI-compatible endpoints require function.arguments as a JSON string.
+                norm = []
+                for tc in m.tool_calls:
+                    fn = tc.get("function", tc)
+                    args = fn.get("arguments", {})
+                    if not isinstance(args, str):
+                        args = json.dumps(args)
+                    norm.append({
+                        "id": tc.get("id", ""),
+                        "type": "function",
+                        "function": {"name": fn.get("name", ""), "arguments": args},
+                    })
                 oa_messages.append({
                     "role": "assistant",
                     "content": m.content or "",
-                    "tool_calls": m.tool_calls,
+                    "tool_calls": norm,
                 })
             else:
                 oa_messages.append({"role": m.role, "content": m.content})

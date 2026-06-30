@@ -6,6 +6,29 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.11.1] — 2026-07-01
+
+### Fixed — guards now actually save tokens end-to-end (validation pass)
+
+Real Groq runs exposed that the headline savings did not reproduce. Two root causes, both fixed:
+
+- **Groq/OpenAI tool_calls rejected** — the agent sent `function.arguments` as a dict; Groq requires a
+  JSON string → HTTP 400 → the loop died after turn 1, so success was **0/6** and no final answer was
+  produced. `GroqProvider` (and `HttpAgentProvider`) now serialize arguments to a string. Success
+  restored to **9/9**.
+- **Dedup never caught cross-turn repeats** — default `dedup_scope` was `"turn"` and `new_turn()`
+  cleared it each LLM turn, so the dominant waste pattern (an agent re-calling a tool turns later) was
+  never deduplicated. Default changed to `"session"`.
+
+Re-measured on Groq/support (3 runs/task): **−13.5% tokens (llama-3.3-70b), −19.0% (llama-3.1-8b),
+success preserved 9/9**. Headline numbers updated to these honest, reproducible values.
+
+### Added
+
+- **`runcore ci --agent-url`** — gate YOUR OWN agent in CI by pointing at its OpenAI-compatible
+  endpoint (drives it through the suite via `HttpAgentProvider`). New `--agent-key`, `--agent-model`.
+- Extracted `evaluate_ci()` pure comparison helper + `tests/unit/test_ci_gate.py` (6 tests).
+
 ## [0.11.0] — 2026-06-25
 
 ### Added — certify from the dashboard, no terminal

@@ -68,7 +68,9 @@ class GuardConfig:
     """
     # Dedup guard
     dedup_enabled: bool = True
-    dedup_scope: str = "turn"  # "turn" | "session"
+    # "session" catches cross-turn repetition ("agent forgot it already called this"),
+    # the dominant waste pattern. "turn" only catches repeats within one LLM response.
+    dedup_scope: str = "session"  # "turn" | "session"
 
     # Loop break guard
     loop_break_enabled: bool = True

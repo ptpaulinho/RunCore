@@ -28,3 +28,6 @@ deploy/.env
 
 # Local agent config
 .claude/
+
+# CI gate ephemeral result
+.runcore/ci_result.json

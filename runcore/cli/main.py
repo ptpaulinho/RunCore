@@ -12,6 +12,31 @@ from rich.table import Table
 from rich.panel import Panel
 from rich import box
 
+def evaluate_ci(base: dict, cur: dict, max_cost_increase: float,
+                max_success_drop: float, min_success: float = 0.0):
+    """Pure CI-gate comparison. Returns (cost_increase_pct, success_drop_pp, failures).
+
+    Free providers report $0 cost — the cost gate then falls back to tokens/run.
+    """
+    if base.get("avg_cost_per_run", 0) > 0:
+        cost_inc = (cur["avg_cost_per_run"] - base["avg_cost_per_run"]) / base["avg_cost_per_run"] * 100
+        cost_label = "cost/run"
+    else:
+        b_tok = max(base.get("avg_tokens_per_run", 0), 1e-9)
+        cost_inc = (cur["avg_tokens_per_run"] - b_tok) / b_tok * 100
+        cost_label = "tokens/run (free provider)"
+    success_drop_pp = (base["success_rate"] - cur["success_rate"]) * 100
+
+    fails = []
+    if cost_inc > max_cost_increase:
+        fails.append(f"{cost_label} +{cost_inc:.1f}% > {max_cost_increase:.0f}% allowed")
+    if success_drop_pp > max_success_drop:
+        fails.append(f"success -{success_drop_pp:.1f}pp > {max_success_drop:.0f}pp allowed")
+    if min_success > 0 and cur["success_rate"] < min_success:
+        fails.append(f"success {cur['success_rate']*100:.0f}% < floor {min_success*100:.0f}%")
+    return cost_inc, success_drop_pp, fails
+
+
 app = typer.Typer(
     name="runcore",
     help="RunCore — cost-control runtime for AI agents. Cut duplicate calls, context bloat and loops automatically; prove success didn't drop; gate it in CI.",
@@ -976,6 +1001,9 @@ def ci(
     max_cost_increase: float = typer.Option(10.0, "--max-cost-increase", help="Fail if cost/run rises more than this %"),
     max_success_drop: float = typer.Option(5.0, "--max-success-drop", help="Fail if success rate drops more than this many points"),
     min_success: float = typer.Option(0.0, "--min-success", help="Absolute success-rate floor 0–1 (0 = ignore)"),
+    agent_url: Optional[str] = typer.Option(None, "--agent-url", help="Gate YOUR OWN agent: its OpenAI-compatible endpoint (e.g. https://my-agent/v1)"),
+    agent_key: Optional[str] = typer.Option(None, "--agent-key", help="Bearer token for your agent endpoint (optional)"),
+    agent_model: str = typer.Option("agent", "--agent-model", help="Model identifier your agent endpoint expects"),
 ):
     """CI gate — run the agent under guards and FAIL (exit 1) if it regressed.
 
@@ -984,15 +1012,28 @@ def ci(
       runcore ci --update-baseline      # record current as known-good; commit .runcore/ci_baseline.json
       runcore ci                        # PR check: non-zero exit if the agent got more expensive or less reliable
 
-    Requires the provider key in the environment (e.g. GROQ_API_KEY).
+    Gate a generic model with --provider, OR gate YOUR OWN agent end-to-end by
+    pointing at its OpenAI-compatible endpoint::
+
+      runcore ci --agent-url https://my-agent.example.com/v1 --agent-key $TOKEN --update-baseline
+      runcore ci --agent-url https://my-agent.example.com/v1 --agent-key $TOKEN
+
+    Requires the provider key in the environment (e.g. GROQ_API_KEY) unless --agent-url is used.
     """
     import os, sys, json as _json
     from pathlib import Path as _Path
 
-    key_map = {"groq": "GROQ_API_KEY", "gemini": "GEMINI_API_KEY"}
-    if provider in key_map and not os.environ.get(key_map[provider]):
-        console.print(f"[red]{key_map[provider]} not set.[/red]")
-        raise typer.Exit(2)
+    # Bring-your-own-agent mode: drive the company's real endpoint through the suite.
+    provider_kwargs = None
+    if agent_url:
+        provider = "http"
+        model = agent_model
+        provider_kwargs = {"base_url": agent_url, "api_key": agent_key or ""}
+    else:
+        key_map = {"groq": "GROQ_API_KEY", "gemini": "GEMINI_API_KEY"}
+        if provider in key_map and not os.environ.get(key_map[provider]):
+            console.print(f"[red]{key_map[provider]} not set.[/red]")
+            raise typer.Exit(2)
 
     _repo = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     if _repo not in sys.path:
@@ -1015,7 +1056,7 @@ def ci(
         for task in tasks:
             for _ in range(runs):
                 try:
-                    run, trace = run_one(task, provider, model, with_guards=True)
+                    run, trace = run_one(task, provider, model, with_guards=True, provider_kwargs=provider_kwargs)
                     costs.append(trace.aggregates.total_cost_usd)
                     tokens.append(trace.aggregates.total_tokens)
                     successes += 1 if run.success else 0
@@ -1049,23 +1090,8 @@ def ci(
         raise typer.Exit(2)
     base = _json.loads(bp.read_text())
 
-    # Free providers report $0 — fall back to tokens for the cost gate.
-    if base.get("avg_cost_per_run", 0) > 0:
-        cost_inc = (cur["avg_cost_per_run"] - base["avg_cost_per_run"]) / base["avg_cost_per_run"] * 100
-        cost_label = "cost/run"
-    else:
-        b_tok = max(base.get("avg_tokens_per_run", 0), 1e-9)
-        cost_inc = (cur["avg_tokens_per_run"] - b_tok) / b_tok * 100
-        cost_label = "tokens/run (free provider)"
-    success_drop_pp = (base["success_rate"] - cur["success_rate"]) * 100
-
-    fails = []
-    if cost_inc > max_cost_increase:
-        fails.append(f"{cost_label} +{cost_inc:.1f}% > {max_cost_increase:.0f}% allowed")
-    if success_drop_pp > max_success_drop:
-        fails.append(f"success -{success_drop_pp:.1f}pp > {max_success_drop:.0f}pp allowed")
-    if min_success > 0 and cur["success_rate"] < min_success:
-        fails.append(f"success {cur['success_rate']*100:.0f}% < floor {min_success*100:.0f}%")
+    cost_inc, success_drop_pp, fails = evaluate_ci(
+        base, cur, max_cost_increase, max_success_drop, min_success)
 
     table = Table(box=box.SIMPLE, show_header=True, header_style="bold dim", title="RunCore CI gate")
     table.add_column("Metric", style="cyan")
