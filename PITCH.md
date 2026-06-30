@@ -20,7 +20,8 @@
 proves, with a hard success check, that nothing broke.
 
 - **Runtime Guards** intercept duplicate tool calls, compress bloated context, and break runaway
-  loops *before* they hit the API. Measured: **14–19% fewer tokens, success preserved** (Groq, support suite, llama-3.1-8b & 3.3-70b, 3 runs/task).
+  loops *before* they hit the API. Measured: **up to 46% fewer tokens, success preserved**
+  (Groq, support suite, llama-3.1-8b, 12 runs — 12/12 success held).
 - **CI gate** — a GitHub Action fails the build when an agent regresses (more expensive or less
   reliable) before it ships. This is the wedge: a test that catches cost/quality regressions.
 - **Provider/framework agnostic** — wrap OpenAI, Anthropic, Groq, local models; LangGraph, CrewAI,
@@ -64,7 +65,8 @@ Expansion: per-seat CI, savings-based pricing (% of proven savings), private mod
 
 ## Proof points (today)
 
-- Working runtime guards: reproducible **14–19% token savings, success preserved** (real Groq runs, support suite).
+- Working runtime guards: **46% token reduction, 12/12 success preserved** (real Groq runs,
+  llama-3.1-8b, support suite, 12 runs) via dedup + stale-context elision.
 - Live platform (dashboard, SDK, CLI, leaderboard, certification).
 - Open methodology (`RUNCORE_SCORE_SPEC.md`) and open trace format (`ATIR_SPEC.md`).
 

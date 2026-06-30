@@ -42,6 +42,8 @@ class HttpAgentProvider(BaseProvider):
         auth_header: str = "Authorization",
         auth_scheme: str = "Bearer",
         timeout: float = 120.0,
+        max_retries: int = 3,
+        backoff_base: float = 1.0,
         price_input_per_mtok: float = 0.0,
         price_output_per_mtok: float = 0.0,
         **kwargs: Any,
@@ -53,6 +55,8 @@ class HttpAgentProvider(BaseProvider):
         self.auth_header = auth_header
         self.auth_scheme = auth_scheme
         self.timeout = timeout
+        self.max_retries = max_retries
+        self.backoff_base = backoff_base
         self.price_input_per_mtok = price_input_per_mtok
         self.price_output_per_mtok = price_output_per_mtok
 
@@ -145,11 +149,33 @@ class HttpAgentProvider(BaseProvider):
         if tools:
             payload["tools"] = [{"type": "function", "function": t.to_dict()} for t in tools]
 
+        # Retry on transient failures (429 rate-limit, 5xx, network/timeout) with
+        # exponential backoff. Honors Retry-After when present. Raises on persistent
+        # failure so the caller records a failed run — never a silent 0-token "success".
         t0 = time.perf_counter()
-        resp = httpx.post(self._endpoint(), json=payload, headers=self._headers(), timeout=self.timeout)
+        last_exc = None
+        data = None
+        for attempt in range(self.max_retries + 1):
+            try:
+                resp = httpx.post(self._endpoint(), json=payload, headers=self._headers(), timeout=self.timeout)
+                if resp.status_code in (429, 500, 502, 503, 504):
+                    if attempt < self.max_retries:
+                        ra = resp.headers.get("Retry-After")
+                        delay = float(ra) if (ra and ra.replace(".", "", 1).isdigit()) else self.backoff_base * (2 ** attempt)
+                        time.sleep(min(delay, 30.0))
+                        continue
+                resp.raise_for_status()
+                data = resp.json()
+                break
+            except (httpx.TimeoutException, httpx.TransportError) as exc:
+                last_exc = exc
+                if attempt < self.max_retries:
+                    time.sleep(min(self.backoff_base * (2 ** attempt), 30.0))
+                    continue
+                raise RuntimeError(f"agent endpoint unreachable after {self.max_retries + 1} attempts: {exc}") from exc
+        if data is None:
+            raise RuntimeError(f"agent endpoint failed after retries: {last_exc}")
         duration_ms = (time.perf_counter() - t0) * 1000
-        resp.raise_for_status()
-        data = resp.json()
 
         choice = (data.get("choices") or [{}])[0]
         msg = choice.get("message", {}) or {}

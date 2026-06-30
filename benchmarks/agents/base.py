@@ -11,6 +11,23 @@ from runcore import GuardConfig
 from runcore.providers.base import BaseProvider, Message, ToolDefinition
 from benchmarks.tasks import BenchmarkTask
 
+# Compact stub that replaces an elided tool result. Small + self-describing so the
+# model knows the data was already provided earlier in the conversation.
+_ELIDED_STUB = '{"note": "result elided to save context — provided earlier in this conversation"}'
+
+
+def _elide_stale_tool_outputs(messages: list[Message], keep_last: int = 2) -> None:
+    """Replace the content of older tool-result messages with a compact stub, in place.
+
+    The most recent ``keep_last`` tool results stay verbatim (the model usually needs
+    the latest evidence to answer). Older ones — already consumed in prior reasoning —
+    are collapsed, cutting input tokens re-sent on every subsequent LLM call. Already
+    elided messages are skipped (idempotent)."""
+    tool_idxs = [i for i, m in enumerate(messages) if m.role == "tool"]
+    for i in tool_idxs[:-keep_last] if keep_last > 0 else tool_idxs:
+        if messages[i].content != _ELIDED_STUB:
+            messages[i].content = _ELIDED_STUB
+
 
 @dataclass
 class AgentRun:
@@ -73,6 +90,13 @@ class BaseAgent:
             for turn in range(task.max_turns):
                 # New LLM turn — reset turn-scoped dedup state.
                 cap.new_turn()
+
+                # Context compression guard: once a tool result has been consumed by
+                # earlier turns, its full payload need not be re-sent on every later LLM
+                # call. Elide stale tool outputs (keep the most recent verbatim) — a real
+                # input-token saving with decision-relevant context preserved. Guarded only.
+                if self.guards is not None:
+                    _elide_stale_tool_outputs(messages, keep_last=3)
 
                 resp = self.provider.chat(
                     messages=messages,

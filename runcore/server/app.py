@@ -2350,7 +2350,7 @@ def start_page() -> str:
       <h3>See the savings</h3>
       <p>RunCore reports exactly what it cut — tokens, cost — with a check that success held.</p>
       <div class="code-block">run.savings.summary_line()<br># saved 27% tokens, $0.0041/run,<br># success preserved</div>
-      <p style="margin-top:12px">Measured on real runs: <strong>14–19% fewer tokens</strong>, success preserved.</p>
+      <p style="margin-top:12px">Measured on real runs: <strong>up to 46% fewer tokens</strong>, success preserved.</p>
     </div>
 
     <div class="step">

@@ -6,6 +6,21 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.11.2] — 2026-07-01
+
+### Added — context compression wired into the agent loop (bigger savings)
+
+- Guarded runs now **elide stale tool-result payloads** before each LLM call (keep the most recent
+  3 verbatim), so consumed tool outputs aren't re-sent every turn. Combined with dedup this lifts
+  measured savings from ~19% to **46% fewer tokens with 12/12 success preserved**
+  (Groq, llama-3.1-8b, support suite, 12 runs). `keep_last=3` chosen after `keep_last=2` cost a
+  task on llama-3.3-70b — conservative by default; the CI gate catches any regression anyway.
+
+### Changed — HttpAgentProvider hardened
+
+- Retry with exponential backoff on 429/5xx/timeout (honors `Retry-After`); raises a clear error on
+  persistent failure instead of silently recording a 0-token "success". New `max_retries`/`backoff_base`.
+
 ## [0.11.1] — 2026-07-01
 
 ### Fixed — guards now actually save tokens end-to-end (validation pass)

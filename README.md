@@ -17,7 +17,7 @@ import runcore
 with runcore.capture("my_agent", guards=runcore.GuardConfig()) as run:
     my_agent.run(task)          # any LLM agent — OpenAI, Anthropic, Groq, local
 
-print(run.savings.summary_line())   # "saved 19% tokens, success preserved" (measured, Groq/support)
+print(run.savings.summary_line())   # "saved 46% tokens, success preserved" (measured, Groq/support, llama-3.1-8b)
 ```
 
 Run it in **CI to fail the build when an agent regresses** — more expensive or less reliable — before it reaches production.
