@@ -1756,25 +1756,41 @@ async def stream_run(run_id: str, request: Request):
 
             yield f"event: status\ndata: {json.dumps({'status': current_status, 'pct': 0})}\n\n"
 
+            idle = 0.0
+            seen_registered = bool(run)   # was the run known at connect time?
             while True:
                 if await request.is_disconnected():
                     break
                 try:
-                    msg = q.get(timeout=0.5)
+                    # Non-blocking: never block the event loop (a blocking queue.get
+                    # here would stall disconnect handling and starve other connections).
+                    msg = q.get_nowait()
                     yield msg
+                    idle = 0.0
                     if '"status": "done"' in msg or '"status": "error"' in msg:
                         break
+                    continue
                 except queue.Empty:
                     # Check if run finished while we were waiting (race condition guard)
                     with _lock:
                         run = _runs.get(run_id, {})
+                    if run:
+                        seen_registered = True
                     if run.get("status") in ("done", "error"):
                         payload = {"status": run["status"], "pct": 100,
                                    "savings": run.get("savings"),
                                    "report_url": run.get("report_url")}
                         yield f"event: {run['status']}\ndata: {json.dumps(payload)}\n\n"
                         break
-                    yield ": ping\n\n"
+                    # Ghost run: never registered within the grace window → nothing to
+                    # stream. Close instead of holding the connection open forever.
+                    if not seen_registered and idle >= 2.0:
+                        yield 'event: end\ndata: {"status": "unknown"}\n\n'
+                        break
+                    await asyncio.sleep(0.25)
+                    idle += 0.25
+                    if seen_registered and idle % 15.0 < 0.25:   # keep-alive ~15s
+                        yield ": ping\n\n"
         finally:
             with _sse_lock:
                 listeners = _sse_queues.get(run_id, [])
