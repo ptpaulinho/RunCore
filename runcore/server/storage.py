@@ -160,7 +160,8 @@ CREATE TABLE IF NOT EXISTS certifications (
     json_data    TEXT,
     html_file    TEXT,
     product_name TEXT,
-    cert_type    TEXT
+    cert_type    TEXT,
+    published    INTEGER DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_cert_tenant ON certifications(tenant_id);
 CREATE TABLE IF NOT EXISTS tenant_keys (
@@ -226,7 +227,8 @@ CREATE TABLE IF NOT EXISTS certifications (
     json_data    TEXT,
     html_file    TEXT,
     product_name TEXT,
-    cert_type    TEXT
+    cert_type    TEXT,
+    published    INTEGER DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_cert_tenant ON certifications(tenant_id);
 CREATE TABLE IF NOT EXISTS tenant_keys (
@@ -261,6 +263,7 @@ def _migrate(con) -> None:
     add_cols = [
         ("certifications", "product_name", "TEXT"),
         ("certifications", "cert_type", "TEXT"),
+        ("certifications", "published", "INTEGER DEFAULT 0"),
     ]
     for table, col, coltype in add_cols:
         try:
@@ -727,6 +730,35 @@ def save_certification(tenant_id: str, cert: dict, html_file: str = "",
         else:
             con.execute(sql, vals)
     return cert_id
+
+
+def set_certification_published(tenant_id: str, cert_id: str, published: bool) -> None:
+    """Opt-in/out of showing a certification on the public leaderboard."""
+    with _lock, _db() as con:
+        ph = "%s" if _POSTGRES else "?"
+        sql = f"UPDATE certifications SET published={ph} WHERE tenant_id={ph} AND id={ph}"
+        vals = (1 if published else 0, tenant_id, cert_id)
+        if _POSTGRES:
+            cur = con.cursor(); cur.execute(sql, vals); con.commit(); cur.close()
+        else:
+            con.execute(sql, vals)
+
+
+def list_published_certifications() -> list[dict]:
+    """All certifications tenants opted to publish, with company name attached.
+
+    Cross-tenant read for the public leaderboard — only rows with published=1.
+    """
+    with _lock, _db() as con:
+        sql = ("SELECT c.*, t.company_name AS company_name FROM certifications c "
+               "JOIN tenants t ON t.id=c.tenant_id WHERE c.published=1")
+        if _POSTGRES:
+            import psycopg2.extras
+            con.cursor_factory = psycopg2.extras.RealDictCursor
+            cur = con.cursor(); cur.execute(sql); rows = cur.fetchall(); cur.close()
+        else:
+            rows = con.execute(sql).fetchall()
+    return [dict(r) for r in rows]
 
 
 def get_certification(tenant_id: str, cert_id: str) -> dict | None:

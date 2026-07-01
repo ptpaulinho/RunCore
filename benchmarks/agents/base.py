@@ -16,17 +16,36 @@ from benchmarks.tasks import BenchmarkTask
 _ELIDED_STUB = '{"note": "result elided to save context — provided earlier in this conversation"}'
 
 
-def _elide_stale_tool_outputs(messages: list[Message], keep_last: int = 2) -> None:
-    """Replace the content of older tool-result messages with a compact stub, in place.
+def _estimate_context_tokens(messages: list[Message]) -> int:
+    """Cheap ~4-chars-per-token estimate of the whole conversation."""
+    chars = 0
+    for m in messages:
+        chars += len(m.content or "")
+        for tc in (m.tool_calls or []):
+            fn = tc.get("function", tc)
+            chars += len(str(fn.get("arguments", "")))
+    return chars // 4
 
-    The most recent ``keep_last`` tool results stay verbatim (the model usually needs
-    the latest evidence to answer). Older ones — already consumed in prior reasoning —
-    are collapsed, cutting input tokens re-sent on every subsequent LLM call. Already
-    elided messages are skipped (idempotent)."""
+
+def _elide_stale_tool_outputs(messages: list[Message], keep_last: int = 3,
+                              min_context_tokens: int = 1200) -> int:
+    """Adaptively collapse older tool-result payloads. Returns tokens saved (est).
+
+    Only fires once the conversation exceeds ``min_context_tokens`` — short
+    conversations keep full context so task success is never risked to save a
+    handful of tokens. Above the threshold, every tool result except the most
+    recent ``keep_last`` is replaced with a compact stub (already-consumed
+    evidence need not be re-sent on every subsequent LLM call). Idempotent."""
+    if _estimate_context_tokens(messages) < min_context_tokens:
+        return 0
     tool_idxs = [i for i, m in enumerate(messages) if m.role == "tool"]
-    for i in tool_idxs[:-keep_last] if keep_last > 0 else tool_idxs:
+    victims = tool_idxs[:-keep_last] if keep_last > 0 else tool_idxs
+    saved = 0
+    for i in victims:
         if messages[i].content != _ELIDED_STUB:
+            saved += max(0, (len(messages[i].content or "") - len(_ELIDED_STUB)) // 4)
             messages[i].content = _ELIDED_STUB
+    return saved
 
 
 @dataclass

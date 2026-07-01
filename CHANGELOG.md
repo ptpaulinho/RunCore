@@ -6,6 +6,27 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.11.3] — 2026-07-01
+
+### Added
+- **Onboarding wizard** — the company dashboard shows a guided 3-step wizard
+  ("first certificate is ~15 min away": add key → run → share) while there are no
+  certifications; step 1 auto-checks when a provider key is saved.
+- **Publish to leaderboard (opt-in)** — a per-certification publish/unpublish toggle
+  on the dashboard; published company certs appear on the public `/leaderboard`
+  labeled by product/company (private reports stay private, shown as "verified").
+  New `published` column + `set_certification_published()` / `list_published_certifications()`.
+
+### Changed
+- **Adaptive context elision** — stale tool-output elision now only fires once the
+  conversation exceeds ~1200 tokens (short conversations keep full context, so
+  success is never risked for a few tokens); returns estimated tokens saved.
+  4 unit tests added.
+
+### Fixed
+- SSE progress endpoint no longer blocks the event loop (see 0.11.2 note); both
+  previously-hanging stream tests pass. Full suite: 340 passed.
+
 ## [0.11.2] — 2026-07-01
 
 ### Added — context compression wired into the agent loop (bigger savings)

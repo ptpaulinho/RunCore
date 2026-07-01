@@ -2418,10 +2418,27 @@ def start_page() -> str:
 def leaderboard_page() -> str:
     """Public efficiency leaderboard — agents ranked by RunCore Score™."""
     certs = _load_cert_history()
-    # Keep only best result per (provider, model) pair
+    # Merge in company certifications that were explicitly published (opt-in).
+    try:
+        for pc in _store.list_published_certifications():
+            certs.append({
+                "provider": pc.get("provider"), "model": pc.get("model"),
+                "suite": pc.get("suite"), "grade": pc.get("grade"),
+                "overall": pc.get("score", 0), "certified": bool(pc.get("certified")),
+                "product_name": pc.get("product_name"), "company_name": pc.get("company_name"),
+                "is_tenant": True,
+            })
+    except Exception:
+        pass  # leaderboard must render even if the tenant store is unavailable
+
+    # Keep only the best result per entity. Company products key by product+company
+    # (each distinct product is its own row); generic models key by provider/model.
     best: dict[str, dict] = {}
     for c in certs:
-        key = f"{c.get('provider','')}/{c.get('model','')}"
+        if c.get("is_tenant"):
+            key = f"tenant:{c.get('company_name','')}/{c.get('product_name','')}"
+        else:
+            key = f"{c.get('provider','')}/{c.get('model','')}"
         if key not in best or c.get("overall", 0) > best[key].get("overall", 0):
             best[key] = c
     ranked = sorted(best.values(), key=lambda c: c.get("overall", 0), reverse=True)
@@ -2444,14 +2461,22 @@ def leaderboard_page() -> str:
             cpst_fmt = f"${cpst:.6f}" if isinstance(cpst, (int, float)) else "—"
             medal = {1: "🥇", 2: "🥈", 3: "🥉"}.get(i, f"{i}")
             html_file = c.get("html_file", "")
-            report = (f'<a href="/certification/reports/{html_file}" style="color:var(--accent);text-decoration:none;font-size:.8rem">report →</a>'
-                      if html_file else "—")
+            if c.get("is_tenant"):
+                # Published company product — private report stays private; show a verified chip.
+                report = '<span style="color:#22c55e;font-size:.75rem">✓ verified</span>'
+                ent_main = c.get("product_name") or c.get("company_name") or "Company agent"
+                ent_sub = (c.get("company_name") or "") + (f" · {c.get('provider','')}/{c.get('model','')}" if c.get('provider') else "")
+            else:
+                report = (f'<a href="/certification/reports/{html_file}" style="color:var(--accent);text-decoration:none;font-size:.8rem">report →</a>'
+                          if html_file else "—")
+                ent_main = c.get('provider', '?')
+                ent_sub = c.get('model', '?')
             cert_chip = ('<span style="color:#22c55e;font-size:.75rem;font-weight:600">✓ Certified</span>'
                          if c.get("certified") else '<span style="color:#94a3b8;font-size:.75rem">not certified</span>')
             rows += f"""<tr>
               <td style="text-align:center;font-size:1rem;width:48px">{medal}</td>
-              <td><div style="font-weight:600;color:var(--text)">{c.get('provider','?')}</div>
-                  <div style="font-size:.76rem;color:var(--muted)">{c.get('model','?')}</div></td>
+              <td><div style="font-weight:600;color:var(--text)">{ent_main}</div>
+                  <div style="font-size:.76rem;color:var(--muted)">{ent_sub}</div></td>
               <td><span style="display:inline-block;min-width:34px;text-align:center;background:{col};color:#06101f;font-weight:700;font-size:.85rem;padding:3px 8px;border-radius:6px">{grade}</span></td>
               <td style="font-weight:700;color:var(--text)">{c.get('overall',0):.1f}</td>
               <td style="font-size:.82rem;color:var(--text2)">{c.get('suite','?')}</td>
@@ -3483,6 +3508,11 @@ def company_dashboard(session: str | None = Cookie(default=None)):
             if cid:
                 report_link = (f'<a href="/app/certify/report/{cid}" target="_blank" style="color:var(--accent);font-size:.8rem">view</a> '
                                f'<a href="/app/certify/report/{cid}/download" style="color:var(--muted);font-size:.8rem">↓</a>')
+                if c.get("certified"):
+                    if c.get("published"):
+                        report_link += (f' · <a href="/app/certify/publish/{cid}?on=0" style="color:#22c55e;font-size:.75rem">✓ on leaderboard</a>')
+                    else:
+                        report_link += (f' · <a href="/app/certify/publish/{cid}?on=1" style="color:var(--muted);font-size:.75rem">publish →</a>')
             else:
                 report_link = "—"
             subject = c.get("product_name") or c.get("model", "?")
@@ -3497,6 +3527,28 @@ def company_dashboard(session: str | None = Cookie(default=None)):
               <td>{cert_chip}</td>
               <td>{report_link}</td>
             </tr>"""
+
+    # First-run onboarding wizard (only while the company has no certifications).
+    wizard_card = ""
+    if not certs:
+        has_key = bool(_store.get_tenant_keys(tenant["id"]))
+        def _step(num, done, title, body):
+            mark = "✓" if done else str(num)
+            bg = "#22c55e" if done else "var(--accent)"
+            return (f'<div style="display:flex;gap:14px;margin-bottom:18px">'
+                    f'<div style="flex:none;width:30px;height:30px;border-radius:50%;background:{bg};color:#06101f;'
+                    f'font-weight:700;display:flex;align-items:center;justify-content:center">{mark}</div>'
+                    f'<div><div style="font-weight:700;margin-bottom:3px">{title}</div>'
+                    f'<div style="color:var(--text2);font-size:.86rem;line-height:1.5">{body}</div></div></div>')
+        wizard_card = f"""
+  <div class="card" style="padding:28px;margin-bottom:24px;border:1px solid var(--accent)44">
+    <h2 style="margin:0 0 4px;font-size:1.1rem;font-weight:700">Your first certificate is ~15 minutes away</h2>
+    <p style="color:var(--text2);font-size:.88rem;margin:0 0 22px">Three steps — no terminal needed.</p>
+    {_step(1, has_key, "Add a provider key", 'Save a free Groq key (console.groq.com) in <a href="/app/settings" style="color:var(--accent)">Settings</a>. ' + ("<span style='color:#22c55e'>Done</span>" if has_key else "Not set yet."))}
+    {_step(2, False, "Run a certification", 'Go to <a href="/app/certify" style="color:var(--accent)">Run Certification</a> — pick a model or point at your own agent endpoint. It runs in the cloud.')}
+    {_step(3, False, "Share the proof", "Your grade, report and an embeddable badge appear here automatically — put it in your README or an RFP.")}
+    <a href="/app/certify" class="run-btn" style="margin-top:6px">Start now →</a>
+  </div>"""
 
     # Badge embed snippet for the most recent certified result
     best = next((c for c in certs if c.get("certified")), None)
@@ -3543,7 +3595,7 @@ tr:hover td{{background:var(--surface)}}
     </div>
     <a href="/app/certify" class="run-btn">+ Run Certification</a>
   </div>
-
+{wizard_card}
   <div class="card" style="padding:0">
     <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <h2 style="margin:0;font-size:1rem;font-weight:700">Certification History</h2>
@@ -3952,3 +4004,15 @@ def app_certify_report_download(cert_id: str, session: str | None = Cookie(defau
     if not tenant:
         return RedirectResponse("/login", status_code=303)
     return _serve_tenant_report(tenant, cert_id, download=True)
+
+
+@app.get("/app/certify/publish/{cert_id}")
+def app_certify_publish(cert_id: str, on: int = 1, session: str | None = Cookie(default=None)):
+    """Opt a certification in/out of the public leaderboard (own certs only)."""
+    tenant = _get_tenant(session)
+    if not tenant:
+        return RedirectResponse("/login", status_code=303)
+    cert = _store.get_certification(tenant["id"], cert_id)
+    if cert and cert.get("certified"):
+        _store.set_certification_published(tenant["id"], cert_id, bool(on))
+    return RedirectResponse("/app/dashboard", status_code=303)
