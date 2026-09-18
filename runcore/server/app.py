@@ -2701,23 +2701,22 @@ footer {{ border-top: 1px solid var(--border); padding: 40px 0 48px; }}
 
     <section class="section" id="steps">
       <div class="section-head">
-        <h2 class="reveal">Three steps to your first save</h2>
-        <p class="sub reveal">No rewrite. No terminal required after setup.</p>
+        <h2 class="reveal">Two levels of integration — pick what you need</h2>
+        <p class="sub reveal">Tracing and loop-break are automatic. Duplicate-call and context guards take one small hook.</p>
       </div>
       <div class="steps">
         <div class="step reveal">
           <div class="step-num">1</div>
-          <h3>Wrap your agent</h3>
-          <p>Any provider (OpenAI, Anthropic, Groq, local), any framework. One line turns on the runtime guards.</p>
-          <div class="code"><span class="c3"># pip install</span><br>pip install runcore</div>
-          <div class="code"><span class="c1">with</span> runcore.capture(<span class="c2">"agent"</span>,<br>&nbsp;&nbsp;guards=runcore.GuardConfig()):<br>&nbsp;&nbsp;&nbsp;&nbsp;my_agent.run(task)</div>
+          <h3>Automatic — tracing &amp; loop-break</h3>
+          <p>One import patches your LLM client once (not per call). Tracks every call's cost/tokens and breaks runaway repeat-loops automatically — zero other changes.</p>
+          <div class="code">pip install runcore<br><span class="c1">import</span> runcore; runcore.auto_instrument()<br><span class="c3"># then just call OpenAI/Anthropic as usual</span></div>
         </div>
 
         <div class="step reveal">
           <div class="step-num">2</div>
-          <h3>See the savings</h3>
-          <p>RunCore reports exactly what it cut — tokens, cost — with a check that success held.</p>
-          <div class="code">run.savings.summary_line()<br><span class="c3"># saved 46% tokens,</span><br><span class="c3"># success preserved</span></div>
+          <h3>Full guards — dedup &amp; context</h3>
+          <p>Cutting duplicate tool calls and stale context needs a hook where <em>your</em> code executes a tool — RunCore can't see inside your tool loop otherwise. A few lines, once:</p>
+          <div class="code"><span class="c3"># in your tool-dispatch loop</span><br><span class="c1">if</span> cap.dedup_check(name, args):<br>&nbsp;&nbsp;result = cached<br><span class="c1">else</span>:<br>&nbsp;&nbsp;result = call_tool(name, args)</div>
         </div>
 
         <div class="step reveal">
@@ -2728,6 +2727,7 @@ footer {{ border-top: 1px solid var(--border); padding: 40px 0 48px; }}
           <a href="https://github.com/ptpaulinho/RunCore/blob/main/docs/CI_GATE.md" class="link-arrow">CI gate guide <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
         </div>
       </div>
+      <p class="sub reveal" style="text-align:center;margin-top:28px">Rather not touch code at all? <a href="/app/certify" style="color:var(--accent-2)">Point RunCore at your agent's API endpoint</a> to certify/score it — no integration, but that path measures, it doesn't guard production traffic.</p>
     </section>
 
     <section class="section">
@@ -2738,8 +2738,8 @@ footer {{ border-top: 1px solid var(--border); padding: 40px 0 48px; }}
       <div class="features">
         <div class="feature reveal">
           <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg></div>
-          <h4>Automatic savings</h4>
-          <p>Guards cut duplicate calls, context bloat & loops at runtime.</p>
+          <h4>Runtime guards</h4>
+          <p>Loop-break is automatic. Duplicate-call & context guards hook into your tool loop — one small change.</p>
         </div>
         <div class="feature reveal">
           <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.5 9.5-.3.1-.6.1-1 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg></div>
