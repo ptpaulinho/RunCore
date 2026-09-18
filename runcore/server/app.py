@@ -2945,9 +2945,9 @@ def leaderboard_page() -> str:
   <div class="card" style="margin-top:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px">
     <div>
       <div style="font-weight:600;color:var(--text);font-size:1rem">Get your agent listed</div>
-      <div style="color:var(--text2);font-size:.85rem;margin-top:4px">Run a certification — your score, badge, and report appear here automatically.</div>
+      <div style="color:var(--text2);font-size:.85rem;margin-top:4px">Sign up, run a certification, then click <strong style="color:var(--text)">Publish</strong> on it in your dashboard — it appears here instantly.</div>
     </div>
-    <code style="background:var(--surface2);color:var(--accent);padding:10px 14px;border-radius:8px;font-size:.85rem">runcore certify --provider groq</code>
+    <a href="/register" style="background:linear-gradient(135deg,#5577f3,#4a6cf5);color:#fff;text-decoration:none;font-size:.85rem;font-weight:600;padding:10px 18px;border-radius:8px;white-space:nowrap">Get started free →</a>
   </div>
 </div>
 </body></html>"""
@@ -3580,7 +3580,7 @@ def billing_plans(request: Request) -> str:
           <div style="font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;
             color:var(--muted);margin-bottom:10px">{p["plan"].title()}</div>
           <div style="font-size:2.4rem;font-weight:800;line-height:1;margin-bottom:4px;{price_color}">{p["price"]}</div>
-          <div style="font-size:.8rem;color:var(--muted);margin-bottom:20px">{p["traces"]} traces / month</div>
+          <div style="font-size:.8rem;color:var(--muted);margin-bottom:20px">{p["traces"]} traces</div>
           <ul style="list-style:none;margin-bottom:16px">{feats}</ul>
           <div style="font-size:.76rem;color:var(--muted);margin-bottom:3px">Data retained: {p["retention"]}</div>
           <div style="font-size:.76rem;color:var(--muted);margin-bottom:0">Seats: {p["seats"]}</div>
@@ -4203,9 +4203,13 @@ def company_certify_page(session: str | None = Cookie(default=None)):
     has_groq = "groq" in tkeys
     groq_warn = "" if has_groq else (
         '<div style="background:#f59e0b22;border:1px solid #f59e0b55;color:#f59e0b;border-radius:8px;'
-        'padding:10px 14px;margin-bottom:20px;font-size:.84rem">⚠️ No Groq key saved. '
+        'padding:10px 14px;margin-bottom:20px;font-size:.84rem;display:flex;align-items:center;gap:8px">'
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" '
+        'stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>'
+        '<line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>'
+        '<span>No Groq key saved. '
         'Add one in <a href="/app/settings" style="color:#f59e0b;text-decoration:underline">Settings</a> '
-        'to certify a Groq model from here (free at console.groq.com).</div>')
+        'to certify a Groq model from here (free at console.groq.com).</span></div>')
     return f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>RunCore — Run Certification</title>
