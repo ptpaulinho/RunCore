@@ -3657,8 +3657,14 @@ def register_page(error: str = ""):
 .btn-primary{{width:100%;background:linear-gradient(135deg,#5577f3,#4a6cf5);color:#fff;border:none;border-radius:10px;padding:12px;font-size:1rem;font-weight:600;cursor:pointer;margin-top:8px}}
 .auth-footer{{text-align:center;margin-top:20px;font-size:.85rem;color:var(--text2)}}
 .auth-footer a{{color:var(--accent);text-decoration:none}}
+.auth-eyebrow{{display:inline-flex;align-items:center;gap:7px;background:var(--surface2);border:1px solid var(--border-m);color:var(--accent-2);font-size:.72rem;font-weight:600;padding:5px 12px;border-radius:100px;margin-bottom:18px}}
+.auth-eyebrow .dot{{width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px rgba(52,211,153,.2)}}
+.auth-trust{{text-align:center;margin-top:24px;padding-top:18px;border-top:1px solid var(--border);color:var(--muted);font-size:.76rem}}
 </style></head><body>
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
 <div class="auth-card">
+  <div class="auth-eyebrow"><span class="dot"></span> Runtime cost control for AI agents</div>
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:28px">
     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#5577f3" stroke-width="2.5"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
     <span style="font-weight:800;font-size:1.2rem">RunCore</span>
@@ -3673,6 +3679,7 @@ def register_page(error: str = ""):
     <button class="btn-primary" type="submit">Create account →</button>
   </form>
   <div class="auth-footer">Already have an account? <a href="/login">Sign in →</a></div>
+  <div class="auth-trust">46% fewer tokens · 100% task success preserved</div>
 </div>
 </body></html>"""
 
