@@ -2388,7 +2388,54 @@ def _cpst_from_cert(cert: dict) -> float | None:
 
 @app.get("/start", response_class=HTMLResponse)
 def start_page() -> str:
-    """Onboarding page for new users — 3 steps to first certification."""
+    """Public frontpage — what RunCore does, how it works, pricing, FAQ."""
+    check_svg = ('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+                 'stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">'
+                 '<path d="M20 6 9 17l-5-5"/></svg>')
+
+    def _plan_card(p: dict) -> str:
+        is_team = p["plan"] == "team"
+        cls = "plan popular" if is_team else "plan"
+        badge = '<div class="plan-badge">Most popular</div>' if is_team else ""
+        feats = "".join(f'<li>{check_svg}{f}</li>' for f in p["features"])
+        cta_cls = "primary" if p["plan"] != "free" else "ghost"
+        cta_href = "/register" if p["plan"] == "free" else f'/cloud/billing/checkout-page?plan={p["plan"]}'
+        cta_label = "Start free" if p["plan"] == "free" else f'Upgrade to {p["plan"].title()}'
+        return f"""<div class="{cls}">{badge}
+          <div class="plan-name">{p["plan"].title()}</div>
+          <div class="plan-price">{p["price"]}</div>
+          <div class="plan-traces">{p["traces"]} traces &middot; {p["seats"]} seat(s)</div>
+          <ul class="plan-feats">{feats}</ul>
+          <a href="{cta_href}" class="plan-cta {cta_cls}">{cta_label}</a>
+        </div>"""
+
+    plans_html = "".join(_plan_card(p) for p in _billing.TIER_COMPARISON)
+
+    faqs = [
+        ("Does this replace LangSmith or Helicone?",
+         "No — they're observability, RunCore acts. Use them to watch; use RunCore to automatically cut waste at "
+         "runtime and gate regressions in CI. Most teams run both."),
+        ("What counts as a &quot;trace&quot; on the paid plans?",
+         "One captured agent run (one <code>runcore.capture(...)</code> session or one CI certification run). "
+         "The free plan is generous enough for local development and small projects."),
+        ("Do I need to change my agent's code?",
+         "No rewrite. Wrap the existing call with <code>runcore.capture(..., guards=GuardConfig())</code> — "
+         "one line, any provider (OpenAI, Anthropic, Groq, local), any framework."),
+        ("Is the RunCore Score&trade; methodology open?",
+         "Yes — the full formula (cost savings, token reduction, task success weighting) is published and "
+         "auditable. <a href=\"https://github.com/ptpaulinho/RunCore/blob/main/docs/RUNCORE_SCORE_SPEC.md\" "
+         "style=\"color:var(--accent-2)\">Read the spec &rarr;</a>"),
+        ("Can I cancel anytime?",
+         "Yes, no lock-in. Downgrade to Free anytime and keep using the open SDK."),
+    ]
+    faq_html = "".join(
+        f'<details{" open" if i == 0 else ""}><summary>{q}<span class="chev">'
+        f'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" '
+        f'stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></summary>'
+        f'<div class="faq-a">{a}</div></details>'
+        for i, (q, a) in enumerate(faqs)
+    )
+
     return f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RunCore — Get Started</title>
@@ -2563,6 +2610,48 @@ h2 {{ font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 800; letter-spacing: -.0
 }}
 .cta-banner p {{ color: var(--text2); font-size: .92rem; max-width: 480px; }}
 
+/* ── Pricing ── */
+.plans {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: stretch; }}
+@media (max-width: 860px) {{ .plans {{ grid-template-columns: 1fr; max-width: 400px; margin: 0 auto; }} }}
+.plan {{
+  background: var(--card); border: 1px solid var(--border); border-radius: 18px;
+  padding: 30px 26px; display: flex; flex-direction: column; position: relative;
+  transition: border-color .2s, transform .2s;
+}}
+.plan:hover {{ border-color: var(--border-strong); transform: translateY(-3px); }}
+.plan.popular {{ border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 20px 44px -20px rgba(100,136,245,.4); }}
+.plan-badge {{
+  position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff;
+  font-size: .7rem; font-weight: 800; padding: 4px 14px; border-radius: 100px; white-space: nowrap;
+}}
+.plan-name {{ font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 10px; }}
+.plan-price {{ font-size: 2.1rem; font-weight: 800; letter-spacing: -.02em; margin-bottom: 4px; }}
+.plan-traces {{ font-size: .8rem; color: var(--muted); margin-bottom: 20px; }}
+.plan-feats {{ list-style: none; margin: 0 0 24px; flex: 1; display: flex; flex-direction: column; gap: 10px; }}
+.plan-feats li {{ display: flex; align-items: flex-start; gap: 8px; font-size: .86rem; color: var(--text2); line-height: 1.4; }}
+.plan-feats svg {{ flex-shrink: 0; margin-top: 2px; color: var(--green); }}
+.plan-cta {{ display: block; text-align: center; padding: 11px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: .9rem; transition: transform .15s, box-shadow .15s; }}
+.plan-cta.primary {{ background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; box-shadow: 0 10px 24px -10px rgba(100,136,245,.6); }}
+.plan-cta.primary:hover {{ transform: translateY(-2px); }}
+.plan-cta.ghost {{ background: var(--surface2); color: var(--text); border: 1px solid var(--border-strong); }}
+
+/* ── FAQ ── */
+.faq {{ max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }}
+.faq details {{
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+  padding: 18px 22px; transition: border-color .2s;
+}}
+.faq details[open] {{ border-color: var(--border-strong); }}
+.faq summary {{
+  cursor: pointer; font-weight: 700; font-size: .95rem; list-style: none;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}}
+.faq summary::-webkit-details-marker {{ display: none; }}
+.faq summary .chev {{ flex-shrink: 0; transition: transform .2s; color: var(--muted); }}
+.faq details[open] summary .chev {{ transform: rotate(180deg); }}
+.faq .faq-a {{ color: var(--text2); font-size: .88rem; line-height: 1.65; margin-top: 12px; }}
+
 /* ── Footer ── */
 footer {{ border-top: 1px solid var(--border); padding: 40px 0 48px; }}
 .foot-row {{ display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }}
@@ -2581,13 +2670,12 @@ footer {{ border-top: 1px solid var(--border); padding: 40px 0 48px; }}
     <span>RunCore</span>
   </div>
   <div class="nav-links">
-    <a href="/" class="nav-link">Dashboard</a>
-    <a href="/certification" class="nav-link">Certification</a>
+    <a href="#steps" class="nav-link">How it works</a>
+    <a href="#pricing" class="nav-link">Pricing</a>
+    <a href="#faq" class="nav-link">FAQ</a>
     <a href="/leaderboard" class="nav-link">Leaderboard</a>
-    <a href="/cloud/dashboard" class="nav-link">Cloud</a>
-    <a href="/cloud/billing/plans" class="nav-link">Pricing</a>
   </div>
-  <a href="#steps" class="nav-cta">Get started</a>
+  <a href="#pricing" class="nav-cta">Get started</a>
 </nav>
 
 <main>
@@ -2669,6 +2757,21 @@ footer {{ border-top: 1px solid var(--border); padding: 40px 0 48px; }}
           <p>Reproducible 0–100 proof to show customers — optional.</p>
         </div>
       </div>
+    </section>
+
+    <section class="section" id="pricing">
+      <div class="section-head">
+        <h2 class="reveal">Free forever to start. Pay when it protects production.</h2>
+        <p class="sub reveal">No credit card for Free. Cancel anytime.</p>
+      </div>
+      <div class="plans reveal">{plans_html}</div>
+    </section>
+
+    <section class="section" id="faq">
+      <div class="section-head">
+        <h2 class="reveal">Frequently asked</h2>
+      </div>
+      <div class="faq reveal">{faq_html}</div>
     </section>
 
     <section class="section" style="padding-top:0">
