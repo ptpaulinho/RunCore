@@ -2703,7 +2703,7 @@ footer {{ border-top: 1px solid var(--border); padding: 40px 0 48px; }}
     <section class="section" id="steps">
       <div class="section-head">
         <h2 class="reveal">Two levels of integration — pick what you need</h2>
-        <p class="sub reveal">Tracing and loop-break are automatic. Duplicate-call and context guards take one small hook.</p>
+        <p class="sub reveal">Tracing and loop-break are automatic. Duplicate-call and context guards take one decorator per tool.</p>
       </div>
       <div class="steps">
         <div class="step reveal">
@@ -2780,7 +2780,7 @@ footer {{ border-top: 1px solid var(--border); padding: 40px 0 48px; }}
         <div>
           <h2 style="margin-bottom:8px">Get listed on the leaderboard — automatically</h2>
           <p>Sign up free, run a certification, then click <strong style="color:var(--text)">Publish</strong> on it in your dashboard. Your grade, product name, and SHA-256 fingerprint appear on the public leaderboard instantly — no email, no PR.</p>
-          <p class="sub" style="margin-top:10px;font-size:.82rem">Certifying from the CLI without an account? Email your report JSON to <strong style="color:var(--text)">ppereira@saber3d.pt</strong> or open a PR — that path is still manual.</p>
+          <p class="sub" style="margin-top:10px;font-size:.82rem">Certifying from the CLI without an account? <a href="https://github.com/ptpaulinho/RunCore/issues/new" style="color:var(--accent-2)">Open a PR or issue on GitHub</a> — that path is still manual.</p>
         </div>
         <a href="/register" class="btn btn-primary" style="white-space:nowrap">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
