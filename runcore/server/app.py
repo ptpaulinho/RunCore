@@ -3489,22 +3489,11 @@ def billing_plans(request: Request) -> str:
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>RunCore Cloud — Pricing</title>
-<style>{_DESIGN_CSS}
-.hero-title {{
-  font-size: 2.6rem;
-  font-weight: 800;
-  letter-spacing: -1.5px;
-  line-height: 1.1;
-  background: linear-gradient(135deg, #f1f5f9 30%, #6488f5);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin-bottom: 14px;
-}}
-.hero-sub {{ color: var(--text2); margin-bottom: 56px; font-size: 1.05rem; }}
-</style>
+<style>{_DESIGN_CSS}</style>
 </head>
 <body>
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
 <nav class="nav">
   <div class="nav-logo">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="url(#lg3)" stroke-width="2.5"><defs><linearGradient id="lg3" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#6488f5"/><stop offset="100%" stop-color="#8aaaf8"/></linearGradient></defs><polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/></svg>
@@ -3518,10 +3507,18 @@ def billing_plans(request: Request) -> str:
     <a href="/cloud/billing/plans" class="nav-link active">Pricing</a>
   </div>
 </nav>
-<div class="page" style="text-align:center;padding-top:60px">
-  <div class="hero-title">From self-certify to continuous certification</div>
-  <p class="hero-sub">The SDK and self-certification are free forever. Pay when you need your agent's efficiency proven, tracked, and protected in production.</p>
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;text-align:left;max-width:960px;margin:0 auto">
+<div class="page" style="padding-top:40px">
+  <div class="hero-clarity">
+    <div class="eyebrow"><span class="dot"></span> Runtime cost control for AI agents</div>
+    <h1>From self-certify to <span class="grad-text">continuous certification.</span></h1>
+    <p>The SDK and self-certification are free forever. Pay when you need your agent's efficiency proven, tracked, and protected in production.</p>
+    <div class="stat-row">
+      <div class="stat"><b>46%</b><span>fewer tokens, measured</span></div>
+      <div class="stat"><b>100%</b><span>task success preserved</span></div>
+      <div class="stat"><b>Any</b><span>provider or framework</span></div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;text-align:left;max-width:960px;margin:40px auto 0">
     {cards}
   </div>
 </div>
