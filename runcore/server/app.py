@@ -2063,6 +2063,8 @@ def certification_page() -> str:
 <style>{_DESIGN_CSS}</style>
 </head>
 <body>
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
 <nav class="nav">
   <div class="nav-logo">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="url(#lg)" stroke-width="2.5"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#6488f5"/><stop offset="100%" stop-color="#8aaaf8"/></linearGradient></defs><polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/></svg>
@@ -2114,6 +2116,24 @@ def certification_page() -> str:
 
 <div class="page">
 
+  <div class="hero-clarity">
+    <div class="eyebrow"><span class="dot"></span> Runtime cost control for AI agents</div>
+    <h1>Prove your agent didn't get <span class="grad-text">more expensive.</span></h1>
+    <p>Certify any provider or your own agent — RunCore measures real cost and token savings against a baseline, with a hard check that task success held.</p>
+    <div class="hero-ctas">
+      <a href="#run-form" class="btn-hero btn-hero-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        Run a certification
+      </a>
+      <a href="/leaderboard" class="btn-hero btn-hero-ghost">See the leaderboard</a>
+    </div>
+    <div class="stat-row">
+      <div class="stat"><b>46%</b><span>fewer tokens, measured</span></div>
+      <div class="stat"><b>100%</b><span>task success preserved</span></div>
+      <div class="stat"><b>Any</b><span>provider or framework</span></div>
+    </div>
+  </div>
+
   <!-- KPI strip -->
   <div class="kpi-grid">
     <div class="kpi-card">
@@ -2160,7 +2180,7 @@ def certification_page() -> str:
 
   <div class="main-grid">
     <!-- Run form -->
-    <div class="card">
+    <div class="card" id="run-form">
       <div class="card-title">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5,3 19,12 5,21"/></svg>
         Run Certification
@@ -3857,6 +3877,8 @@ td{{padding:12px;border-bottom:1px solid var(--border)22;vertical-align:middle}}
 tr:hover td{{background:var(--surface)}}
 .run-btn{{background:linear-gradient(135deg,#5577f3,#4a6cf5);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:.85rem;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block}}
 </style></head><body>
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
 <nav class="nav">
   <div class="nav-brand">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
@@ -3870,9 +3892,27 @@ tr:hover td{{background:var(--surface)}}
   </div>
 </nav>
 <main class="container" style="max-width:960px;padding-top:40px">
+  <div class="hero-clarity" style="padding-top:8px">
+    <div class="eyebrow"><span class="dot"></span> Runtime cost control for AI agents</div>
+    <h1 style="font-size:clamp(1.5rem,3vw,2.1rem)">Welcome back, <span class="grad-text">{company}.</span></h1>
+    <p>RunCore cuts your agent's token waste automatically and proves task success didn't drop — certify a model or your own agent below.</p>
+    <div class="hero-ctas">
+      <a href="/app/certify" class="btn-hero btn-hero-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        Run a certification
+      </a>
+      <a href="/leaderboard" class="btn-hero btn-hero-ghost">See the leaderboard</a>
+    </div>
+    <div class="stat-row">
+      <div class="stat"><b>46%</b><span>fewer tokens, measured</span></div>
+      <div class="stat"><b>100%</b><span>task success preserved</span></div>
+      <div class="stat"><b>Any</b><span>provider or framework</span></div>
+    </div>
+  </div>
+
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:32px">
     <div>
-      <h1 style="margin:0 0 4px;font-size:1.8rem">{company}</h1>
+      <h2 style="margin:0 0 4px;font-size:1.15rem">Your account</h2>
       <div style="color:var(--text2);font-size:.9rem">Plan: <strong style="color:var(--text)">{tenant.get('plan','free').title()}</strong> · API key: <code style="background:var(--surface);padding:2px 8px;border-radius:4px;font-size:.8rem">{tenant.get('api_key','')[:20]}…</code></div>
     </div>
     <a href="/app/certify" class="run-btn">+ Run Certification</a>
