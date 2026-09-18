@@ -2791,6 +2791,8 @@ def leaderboard_page() -> str:
 <title>RunCore — Efficiency Leaderboard</title>
 <style>{_DESIGN_CSS}</style>
 </head><body>
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
 <nav class="nav">
   <div class="nav-brand">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
@@ -2805,12 +2807,22 @@ def leaderboard_page() -> str:
   </div>
 </nav>
 <div class="page">
-  <div style="margin-bottom:8px">
-    <h1 style="font-size:1.6rem;font-weight:700;color:var(--text);margin:0">Efficiency Leaderboard</h1>
-    <p style="color:var(--text2);font-size:.92rem;margin:8px 0 0;max-width:640px">
-      AI agents ranked by <b>RunCore Score™</b> — the open standard for cost &amp; token efficiency.
-      Higher score = more successful work per dollar. <a href="https://github.com/ptpaulinho/RunCore/blob/main/docs/RUNCORE_SCORE_SPEC.md" style="color:var(--accent)">How it's scored →</a>
-    </p>
+  <div class="hero-clarity">
+    <div class="eyebrow"><span class="dot"></span> Runtime cost control for AI agents</div>
+    <h1>Ranked by <span class="grad-text">real efficiency.</span></h1>
+    <p>AI agents ranked by <b>RunCore Score™</b> — the open standard for cost &amp; token efficiency. Higher score = more successful work per dollar. <a href="https://github.com/ptpaulinho/RunCore/blob/main/docs/RUNCORE_SCORE_SPEC.md" style="color:var(--accent-2)">How it's scored →</a></p>
+    <div class="hero-ctas">
+      <a href="/certification" class="btn-hero btn-hero-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        Get your agent listed
+      </a>
+      <a href="/start" class="btn-hero btn-hero-ghost">How it works</a>
+    </div>
+    <div class="stat-row">
+      <div class="stat"><b>46%</b><span>fewer tokens, measured</span></div>
+      <div class="stat"><b>100%</b><span>task success preserved</span></div>
+      <div class="stat"><b>Any</b><span>provider or framework</span></div>
+    </div>
   </div>
   <div class="card" style="margin-top:20px">
     <table style="width:100%">
@@ -3592,8 +3604,14 @@ def login_page(error: str = ""):
 .btn-primary{{width:100%;background:linear-gradient(135deg,#5577f3,#4a6cf5);color:#fff;border:none;border-radius:10px;padding:12px;font-size:1rem;font-weight:600;cursor:pointer;margin-top:8px}}
 .auth-footer{{text-align:center;margin-top:20px;font-size:.85rem;color:var(--text2)}}
 .auth-footer a{{color:var(--accent);text-decoration:none}}
+.auth-eyebrow{{display:inline-flex;align-items:center;gap:7px;background:var(--surface2);border:1px solid var(--border-m);color:var(--accent-2);font-size:.72rem;font-weight:600;padding:5px 12px;border-radius:100px;margin-bottom:18px}}
+.auth-eyebrow .dot{{width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px rgba(52,211,153,.2)}}
+.auth-trust{{text-align:center;margin-top:24px;padding-top:18px;border-top:1px solid var(--border);color:var(--muted);font-size:.76rem}}
 </style></head><body>
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
 <div class="auth-card">
+  <div class="auth-eyebrow"><span class="dot"></span> Runtime cost control for AI agents</div>
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:28px">
     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#5577f3" stroke-width="2.5"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
     <span style="font-weight:800;font-size:1.2rem">RunCore</span>
@@ -3607,6 +3625,7 @@ def login_page(error: str = ""):
     <button class="btn-primary" type="submit">Sign in →</button>
   </form>
   <div class="auth-footer">Don't have an account? <a href="/register">Create one free →</a></div>
+  <div class="auth-trust">46% fewer tokens · 100% task success preserved</div>
 </div>
 </body></html>"""
 
