@@ -2319,20 +2319,189 @@ def start_page() -> str:
     return f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RunCore — Get Started</title>
-<style>{_DESIGN_CSS}
-.steps {{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;margin:40px 0}}
-.step {{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:32px;position:relative}}
-.step-num {{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;background:var(--accent);color:#fff;font-weight:700;border-radius:50%;margin-bottom:16px;font-size:1rem}}
-.step h3 {{font-size:1.1rem;font-weight:700;margin:0 0 10px;color:var(--text)}}
-.step p {{color:var(--text2);font-size:.9rem;line-height:1.6;margin:0 0 16px}}
-.code-block {{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:14px 16px;font-family:monospace;font-size:.82rem;color:#e6edf3;overflow-x:auto;margin:8px 0}}
-.hero {{text-align:center;padding:60px 0 40px}}
-.hero h1 {{font-size:2.2rem;font-weight:800;margin:0 0 12px}}
-.hero p {{color:var(--text2);font-size:1.05rem;max-width:560px;margin:0 auto 32px}}
-.providers {{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}}
-.provider-chip {{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:.8rem;color:var(--text2)}}
-.cta {{display:inline-block;background:linear-gradient(135deg,#5577f3,#4a6cf5);color:#fff;text-decoration:none;font-weight:600;padding:12px 28px;border-radius:10px;font-size:.95rem;margin-top:8px}}
+<meta name="description" content="RunCore wraps any AI agent, cuts duplicate calls and context bloat at runtime, and proves task success didn't drop. Gate it in CI before you ship.">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+:root {{
+  --bg: #070c19;
+  --surface: #0d1830;
+  --surface2: #121f3d;
+  --card: #0e1a35;
+  --border: rgba(100,136,245,.14);
+  --border-strong: rgba(100,136,245,.32);
+  --text: #f3f5fc;
+  --text2: #97a3c0;
+  --muted: #5b6a8c;
+  --accent: #6488f5;
+  --accent-2: #8aaaf8;
+  --green: #34d399;
+}}
+*, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
+html {{ scroll-behavior: smooth; }}
+body {{
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}}
+a {{ color: inherit; }}
+::selection {{ background: var(--accent); color: #fff; }}
+:focus-visible {{ outline: 2px solid var(--accent-2); outline-offset: 3px; border-radius: 4px; }}
+
+/* ── Background ambience (pure CSS, no assets) ── */
+.bg-glow {{
+  position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
+}}
+.bg-glow::before, .bg-glow::after {{
+  content: ""; position: absolute; border-radius: 50%; filter: blur(90px); opacity: .35;
+}}
+.bg-glow::before {{ width: 620px; height: 620px; top: -220px; left: -160px; background: radial-gradient(circle, var(--accent), transparent 70%); }}
+.bg-glow::after {{ width: 560px; height: 560px; top: 120px; right: -200px; background: radial-gradient(circle, var(--green), transparent 70%); opacity: .18; }}
+.bg-grid {{
+  position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background-image: linear-gradient(rgba(100,136,245,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(100,136,245,.05) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 70% 50% at 50% 0%, #000 40%, transparent 90%);
+}}
+
+/* ── Nav ── */
+.nav {{
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; gap: 8px;
+  height: 68px; padding: 0 clamp(20px, 5vw, 48px);
+  background: rgba(7,12,25,.72);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+}}
+.nav-brand {{ display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.15rem; letter-spacing: -.02em; margin-right: 8px; }}
+.nav-brand svg {{ color: var(--accent-2); flex-shrink: 0; }}
+.nav-brand span {{ background: linear-gradient(135deg, #fff, var(--accent-2)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }}
+.nav-links {{ display: flex; align-items: center; gap: 2px; }}
+.nav-link {{ padding: 8px 14px; border-radius: 8px; font-size: .87rem; font-weight: 500; color: var(--text2); text-decoration: none; transition: color .15s, background .15s; }}
+.nav-link:hover {{ color: var(--text); background: var(--surface2); }}
+.nav-cta {{
+  margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff; text-decoration: none; font-weight: 600; font-size: .85rem;
+  padding: 9px 18px; border-radius: 9px; transition: transform .15s, box-shadow .15s;
+  box-shadow: 0 0 0 rgba(100,136,245,0);
+}}
+.nav-cta:hover {{ transform: translateY(-1px); box-shadow: 0 8px 20px -6px rgba(100,136,245,.55); }}
+@media (max-width: 760px) {{ .nav-links {{ display: none; }} }}
+
+/* ── Layout ── */
+.wrap {{ max-width: 1080px; margin: 0 auto; padding: 0 clamp(20px, 5vw, 32px); }}
+.section {{ padding: clamp(56px, 9vw, 96px) 0; }}
+.section-head {{ text-align: center; max-width: 620px; margin: 0 auto clamp(32px, 6vw, 52px); }}
+.eyebrow {{
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--surface2); border: 1px solid var(--border-strong);
+  color: var(--accent-2); font-size: .78rem; font-weight: 600;
+  padding: 6px 14px; border-radius: 100px; margin-bottom: 22px;
+}}
+.eyebrow .dot {{ width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(52,211,153,.2); }}
+h1 {{ font-size: clamp(2.4rem, 5.4vw, 3.6rem); font-weight: 800; letter-spacing: -.03em; line-height: 1.08; margin-bottom: 20px; }}
+h1 .grad {{ background: linear-gradient(135deg, var(--text), var(--accent-2)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }}
+h2 {{ font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 800; letter-spacing: -.02em; margin-bottom: 10px; }}
+.lede {{ color: var(--text2); font-size: 1.08rem; max-width: 560px; margin: 0 auto; }}
+.sub {{ color: var(--text2); font-size: .95rem; }}
+
+/* ── Hero ── */
+.hero {{ text-align: center; padding: clamp(64px, 10vw, 104px) 0 48px; }}
+.hero-ctas {{ display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 32px; flex-wrap: wrap; }}
+.btn {{
+  display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: .95rem;
+  padding: 13px 26px; border-radius: 11px; text-decoration: none; transition: transform .15s, box-shadow .15s, background .15s, border-color .15s;
+  cursor: pointer; border: 1px solid transparent;
+}}
+.btn-primary {{ background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; box-shadow: 0 10px 28px -10px rgba(100,136,245,.65); }}
+.btn-primary:hover {{ transform: translateY(-2px); box-shadow: 0 14px 32px -8px rgba(100,136,245,.75); }}
+.btn-ghost {{ background: var(--surface); border-color: var(--border-strong); color: var(--text); }}
+.btn-ghost:hover {{ border-color: var(--accent-2); background: var(--surface2); }}
+
+/* ── Stat strip ── */
+.stats {{
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+  max-width: 760px; margin: 56px auto 0;
+  background: var(--border); border: 1px solid var(--border); border-radius: 16px; overflow: hidden;
+}}
+.stat {{ background: var(--card); padding: 22px 18px; text-align: center; }}
+.stat b {{ display: block; font-size: clamp(1.5rem, 3vw, 1.9rem); font-weight: 800; letter-spacing: -.02em; color: var(--green); }}
+.stat span {{ display: block; margin-top: 4px; font-size: .78rem; color: var(--text2); }}
+@media (max-width: 640px) {{ .stats {{ grid-template-columns: 1fr; }} }}
+
+/* ── Reveal-on-scroll (progressive: visible by default, JS only adds motion) ── */
+.reveal {{ opacity: 1; transform: none; }}
+@media (prefers-reduced-motion: no-preference) {{
+  .reveal {{ opacity: 0; transform: translateY(14px); transition: opacity .5s ease, transform .5s ease; }}
+  .reveal.in {{ opacity: 1; transform: none; }}
+}}
+
+/* ── Steps ── */
+.steps {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; position: relative; }}
+@media (max-width: 860px) {{ .steps {{ grid-template-columns: 1fr; }} }}
+.step {{
+  background: var(--card); border: 1px solid var(--border); border-radius: 18px;
+  padding: 30px 26px; position: relative; transition: border-color .2s, transform .2s;
+}}
+.step:hover {{ border-color: var(--border-strong); transform: translateY(-3px); }}
+.step-num {{
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 50%; font-weight: 700; font-size: .95rem;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; margin-bottom: 18px;
+}}
+.step h3 {{ font-size: 1.08rem; font-weight: 700; margin-bottom: 9px; }}
+.step p {{ color: var(--text2); font-size: .9rem; line-height: 1.65; margin-bottom: 14px; }}
+.code {{
+  background: #0a0f1e; border: 1px solid var(--border); border-radius: 10px;
+  padding: 13px 15px; font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  font-size: .78rem; line-height: 1.7; color: #d7ddf5; overflow-x: auto; margin: 10px 0;
+}}
+.code .c1 {{ color: var(--accent-2); }}
+.code .c2 {{ color: var(--green); }}
+.code .c3 {{ color: var(--muted); }}
+.link-arrow {{ display: inline-flex; align-items: center; gap: 5px; color: var(--accent-2); text-decoration: none; font-size: .85rem; font-weight: 600; margin-top: 4px; }}
+.link-arrow:hover {{ text-decoration: underline; }}
+
+/* ── Feature grid ── */
+.features {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }}
+@media (max-width: 900px) {{ .features {{ grid-template-columns: repeat(2, 1fr); }} }}
+@media (max-width: 520px) {{ .features {{ grid-template-columns: 1fr; }} }}
+.feature {{
+  background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+  padding: 24px 20px; transition: border-color .2s, transform .2s;
+}}
+.feature:hover {{ border-color: var(--border-strong); transform: translateY(-3px); }}
+.feature .icon {{
+  width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  background: var(--surface2); color: var(--accent-2); margin-bottom: 16px;
+}}
+.feature h4 {{ font-size: .96rem; font-weight: 700; margin-bottom: 6px; }}
+.feature p {{ color: var(--text2); font-size: .84rem; line-height: 1.6; }}
+
+/* ── CTA banner ── */
+.cta-banner {{
+  background: linear-gradient(135deg, rgba(100,136,245,.12), rgba(52,211,153,.08));
+  border: 1px solid var(--border-strong); border-radius: 20px;
+  padding: clamp(28px, 5vw, 44px); display: flex; align-items: center; justify-content: space-between;
+  gap: 24px; flex-wrap: wrap;
+}}
+.cta-banner p {{ color: var(--text2); font-size: .92rem; max-width: 480px; }}
+
+/* ── Footer ── */
+footer {{ border-top: 1px solid var(--border); padding: 40px 0 48px; }}
+.foot-row {{ display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }}
+.foot-brand {{ display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--text2); font-size: .9rem; }}
+.foot-links {{ display: flex; gap: 22px; flex-wrap: wrap; }}
+.foot-links a {{ color: var(--text2); text-decoration: none; font-size: .85rem; }}
+.foot-links a:hover {{ color: var(--text); }}
+.foot-copy {{ color: var(--muted); font-size: .78rem; margin-top: 20px; }}
 </style></head><body>
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+
 <nav class="nav">
   <div class="nav-brand">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
@@ -2344,73 +2513,133 @@ def start_page() -> str:
     <a href="/leaderboard" class="nav-link">Leaderboard</a>
     <a href="/pricing" class="nav-link">Pricing</a>
   </div>
+  <a href="#steps" class="nav-cta">Get started</a>
 </nav>
-<main class="container" style="max-width:960px">
-  <div class="hero">
-    <h1>Stop your AI agent burning money.</h1>
-    <p>RunCore wraps any agent, cuts the waste — duplicate tool calls, bloated context, runaway loops — and <strong>proves task success didn't drop</strong>. Gate it in CI before you ship.</p>
-    <a href="/leaderboard" class="cta">See the leaderboard →</a>
+
+<main>
+  <div class="wrap">
+    <section class="hero">
+      <div class="eyebrow reveal"><span class="dot"></span> Runtime cost control for AI agents</div>
+      <h1 class="reveal">Stop your AI agent<br><span class="grad">burning money.</span></h1>
+      <p class="lede reveal">RunCore wraps any agent, cuts the waste — duplicate tool calls, bloated context, runaway loops — and <strong style="color:var(--text)">proves task success didn't drop</strong>. Gate it in CI before you ship.</p>
+      <div class="hero-ctas reveal">
+        <a href="#steps" class="btn btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          Get started free
+        </a>
+        <a href="/leaderboard" class="btn btn-ghost">See the leaderboard</a>
+      </div>
+
+      <div class="stats reveal">
+        <div class="stat"><b>46%</b><span>fewer tokens, measured</span></div>
+        <div class="stat"><b>100%</b><span>task success preserved</span></div>
+        <div class="stat"><b>Any</b><span>provider or framework</span></div>
+      </div>
+    </section>
+
+    <section class="section" id="steps">
+      <div class="section-head">
+        <h2 class="reveal">Three steps to your first save</h2>
+        <p class="sub reveal">No rewrite. No terminal required after setup.</p>
+      </div>
+      <div class="steps">
+        <div class="step reveal">
+          <div class="step-num">1</div>
+          <h3>Wrap your agent</h3>
+          <p>Any provider (OpenAI, Anthropic, Groq, local), any framework. One line turns on the runtime guards.</p>
+          <div class="code"><span class="c3"># pip install</span><br>pip install runcore</div>
+          <div class="code"><span class="c1">with</span> runcore.capture(<span class="c2">"agent"</span>,<br>&nbsp;&nbsp;guards=runcore.GuardConfig()):<br>&nbsp;&nbsp;&nbsp;&nbsp;my_agent.run(task)</div>
+        </div>
+
+        <div class="step reveal">
+          <div class="step-num">2</div>
+          <h3>See the savings</h3>
+          <p>RunCore reports exactly what it cut — tokens, cost — with a check that success held.</p>
+          <div class="code">run.savings.summary_line()<br><span class="c3"># saved 46% tokens,</span><br><span class="c3"># success preserved</span></div>
+        </div>
+
+        <div class="step reveal">
+          <div class="step-num">3</div>
+          <h3>Gate it in CI</h3>
+          <p>Fail the build when the agent regresses — more expensive or less reliable — before it ships.</p>
+          <div class="code"><span class="c3"># once</span><br>runcore ci --update-baseline<br><span class="c3"># every PR</span><br>runcore ci</div>
+          <a href="https://github.com/ptpaulinho/RunCore/blob/main/docs/CI_GATE.md" class="link-arrow">CI gate guide <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2 class="reveal">What you get</h2>
+        <p class="sub reveal">A runtime that saves money automatically — plus the proof to show customers.</p>
+      </div>
+      <div class="features">
+        <div class="feature reveal">
+          <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg></div>
+          <h4>Automatic savings</h4>
+          <p>Guards cut duplicate calls, context bloat & loops at runtime.</p>
+        </div>
+        <div class="feature reveal">
+          <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.5 9.5-.3.1-.6.1-1 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg></div>
+          <h4>No-regression proof</h4>
+          <p>Every cut is checked against task success — no silent breakage.</p>
+        </div>
+        <div class="feature reveal">
+          <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.801 10A10 10 0 1 1 17 3.335"/><path d="m9 11 3 3L22 4"/></svg></div>
+          <h4>CI gate</h4>
+          <p>GitHub Action fails the build on cost or quality regression.</p>
+        </div>
+        <div class="feature reveal">
+          <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="16"/></svg></div>
+          <h4>RunCore Score™ + badge</h4>
+          <p>Reproducible 0–100 proof to show customers — optional.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0">
+      <div class="cta-banner reveal">
+        <div>
+          <h2 style="margin-bottom:8px">Submit to the leaderboard</h2>
+          <p>After certification, your SHA-256 fingerprinted report can be submitted publicly. Email your report JSON to <strong style="color:var(--text)">ppereira@saber3d.pt</strong> or open a PR to the RunCore repo.</p>
+        </div>
+        <a href="https://github.com/ptpaulinho/RunCore" class="btn btn-primary" style="white-space:nowrap">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55 0-.27-.01-1.17-.02-2.12-3.2.7-3.87-1.36-3.87-1.36-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.74.4-1.25.72-1.53-2.56-.29-5.26-1.28-5.26-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.79 0c2.21-1.49 3.18-1.18 3.18-1.18.63 1.58.23 2.75.11 3.04.74.81 1.19 1.84 1.19 3.1 0 4.43-2.7 5.41-5.27 5.7.42.36.78 1.07.78 2.16 0 1.56-.01 2.82-.01 3.2 0 .3.2.66.79.55A11.51 11.51 0 0 0 23.5 12c0-6.35-5.15-11.5-11.5-11.5z"/></svg>
+          GitHub
+        </a>
+      </div>
+    </section>
   </div>
 
-  <div class="steps">
-    <div class="step">
-      <div class="step-num">1</div>
-      <h3>Wrap your agent</h3>
-      <p>Any provider (OpenAI, Anthropic, Groq, local), any framework. One line turns on the runtime guards — no rewrite.</p>
-      <div class="code-block">pip install runcore</div>
-      <div class="code-block">with runcore.capture("agent",<br>&nbsp;&nbsp;guards=runcore.GuardConfig()):<br>&nbsp;&nbsp;&nbsp;&nbsp;my_agent.run(task)</div>
-    </div>
-
-    <div class="step">
-      <div class="step-num">2</div>
-      <h3>See the savings</h3>
-      <p>RunCore reports exactly what it cut — tokens, cost — with a check that success held.</p>
-      <div class="code-block">run.savings.summary_line()<br># saved 27% tokens, $0.0041/run,<br># success preserved</div>
-      <p style="margin-top:12px">Measured on real runs: <strong>up to 46% fewer tokens</strong>, success preserved.</p>
-    </div>
-
-    <div class="step">
-      <div class="step-num">3</div>
-      <h3>Gate it in CI</h3>
-      <p>Fail the build when the agent regresses — more expensive or less reliable — before it reaches production.</p>
-      <div class="code-block">runcore ci --update-baseline   # once<br>runcore ci                     # every PR</div>
-      <a href="https://github.com/ptpaulinho/RunCore/blob/main/docs/CI_GATE.md" style="color:var(--accent);text-decoration:none;font-size:.85rem;font-weight:600">CI gate guide →</a>
-    </div>
-  </div>
-
-  <div class="card" style="margin:40px 0;padding:32px">
-    <h2 style="margin:0 0 8px;font-size:1.3rem">What you get</h2>
-    <p style="color:var(--text2);margin:0 0 24px">A runtime that saves money automatically — plus the proof to show customers.</p>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px">
-      <div style="background:var(--surface);border-radius:10px;padding:18px">
-        <div style="font-size:1.5rem;margin-bottom:6px">✂️</div>
-        <div style="font-weight:600;margin-bottom:4px">Automatic savings</div>
-        <div style="color:var(--text2);font-size:.85rem">Guards cut duplicate calls, context bloat & loops at runtime</div>
+  <footer>
+    <div class="wrap">
+      <div class="foot-row">
+        <div class="foot-brand">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          RunCore
+        </div>
+        <div class="foot-links">
+          <a href="/">Dashboard</a>
+          <a href="/certification">Certification</a>
+          <a href="/leaderboard">Leaderboard</a>
+          <a href="/pricing">Pricing</a>
+          <a href="https://github.com/ptpaulinho/RunCore">GitHub</a>
+        </div>
       </div>
-      <div style="background:var(--surface);border-radius:10px;padding:18px">
-        <div style="font-size:1.5rem;margin-bottom:6px">🛡️</div>
-        <div style="font-weight:600;margin-bottom:4px">No-regression proof</div>
-        <div style="color:var(--text2);font-size:.85rem">Every cut is checked against task success — no silent breakage</div>
-      </div>
-      <div style="background:var(--surface);border-radius:10px;padding:18px">
-        <div style="font-size:1.5rem;margin-bottom:6px">⚙️</div>
-        <div style="font-weight:600;margin-bottom:4px">CI gate</div>
-        <div style="color:var(--text2);font-size:.85rem">GitHub Action fails the build on cost/quality regression</div>
-      </div>
-      <div style="background:var(--surface);border-radius:10px;padding:18px">
-        <div style="font-size:1.5rem;margin-bottom:6px">📊</div>
-        <div style="font-weight:600;margin-bottom:4px">RunCore Score™ + badge</div>
-        <div style="color:var(--text2);font-size:.85rem">Reproducible 0–100 proof to show customers — optional</div>
-      </div>
+      <div class="foot-copy">© 2026 RunCore. Cost-control runtime for AI agents.</div>
     </div>
-  </div>
-
-  <div class="card" style="margin:0 0 60px;padding:32px;border:1px solid var(--accent)44">
-    <h2 style="margin:0 0 8px;font-size:1.3rem">Submit to the leaderboard</h2>
-    <p style="color:var(--text2);margin:0 0 20px">After certification, your SHA-256 fingerprinted report can be submitted publicly. Email your report JSON to <strong>ppereira@saber3d.pt</strong> or open a PR to the RunCore repo.</p>
-    <a href="https://github.com/ptpaulinho/RunCore" style="color:var(--accent);text-decoration:none;font-weight:600">GitHub: ptpaulinho/RunCore →</a>
-  </div>
+  </footer>
 </main>
+
+<script>
+if (window.matchMedia('(prefers-reduced-motion: no-preference)').matches && 'IntersectionObserver' in window) {{
+  var els = document.querySelectorAll('.reveal');
+  var obs = new IntersectionObserver(function(entries) {{
+    entries.forEach(function(e) {{ if (e.isIntersecting) {{ e.target.classList.add('in'); obs.unobserve(e.target); }} }});
+  }}, {{ threshold: .12, rootMargin: '0px 0px -40px 0px' }});
+  els.forEach(function(el, i) {{ el.style.transitionDelay = (i % 6) * 40 + 'ms'; obs.observe(el); }});
+}}
+</script>
 </body></html>"""
 
 
