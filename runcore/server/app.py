@@ -704,6 +704,39 @@ a:hover { color: var(--accent-2); text-decoration: underline; }
 @media (max-width: 440px) {
   .kpi-grid { grid-template-columns: 1fr; }
 }
+
+/* ── Premium ambience + hero primitives (opt-in via markup) ── */
+.bg-glow { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.bg-glow::before, .bg-glow::after { content: ""; position: absolute; border-radius: 50%; filter: blur(90px); opacity: .28; }
+.bg-glow::before { width: 620px; height: 620px; top: -220px; left: -160px; background: radial-gradient(circle, var(--accent), transparent 70%); }
+.bg-glow::after { width: 560px; height: 560px; top: 120px; right: -200px; background: radial-gradient(circle, var(--green), transparent 70%); opacity: .14; }
+.bg-grid {
+  position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background-image: linear-gradient(rgba(100,136,245,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(100,136,245,.05) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 70% 50% at 50% 0%, #000 40%, transparent 90%);
+}
+.grad-text { background: linear-gradient(135deg, var(--text), var(--accent-2)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.hero-clarity { text-align: center; padding: 40px 0 32px; max-width: 720px; margin: 0 auto; }
+.hero-clarity .eyebrow {
+  display: inline-flex; align-items: center; gap: 7px; background: var(--surface2);
+  border: 1px solid var(--border-m); color: var(--accent-2); font-size: .78rem; font-weight: 600;
+  padding: 6px 14px; border-radius: 100px; margin-bottom: 18px;
+}
+.hero-clarity .eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(52,211,153,.2); }
+.hero-clarity h1 { font-size: clamp(1.7rem, 3.6vw, 2.5rem); font-weight: 800; letter-spacing: -.02em; line-height: 1.15; margin-bottom: 12px; }
+.hero-clarity p { color: var(--text2); font-size: 1rem; max-width: 560px; margin: 0 auto 22px; }
+.hero-ctas { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }
+.btn-hero { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: .9rem; padding: 11px 22px; border-radius: 10px; text-decoration: none; transition: transform .15s, box-shadow .15s, border-color .15s, background .15s; cursor: pointer; border: 1px solid transparent; }
+.btn-hero-primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; box-shadow: 0 10px 24px -10px rgba(100,136,245,.6); }
+.btn-hero-primary:hover { transform: translateY(-2px); box-shadow: 0 14px 28px -8px rgba(100,136,245,.7); }
+.btn-hero-ghost { background: var(--surface2); border-color: var(--border-m); color: var(--text); }
+.btn-hero-ghost:hover { border-color: var(--accent-2); }
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; max-width: 640px; margin: 0 auto; background: var(--border); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.stat-row .stat { background: var(--surface); padding: 16px 12px; text-align: center; }
+.stat-row .stat b { display: block; font-size: 1.35rem; font-weight: 800; color: var(--green); }
+.stat-row .stat span { display: block; margin-top: 3px; font-size: .74rem; color: var(--text2); }
+@media (max-width: 600px) { .stat-row { grid-template-columns: 1fr; } }
 """
 
 
@@ -1034,6 +1067,8 @@ def dashboard() -> str:
 <style>{_DESIGN_CSS}</style>
 </head>
 <body>
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
 
 <nav class="nav">
   <div class="nav-logo">
@@ -1180,6 +1215,24 @@ def dashboard() -> str:
 </div>
 
 <div class="page">
+
+  <div class="hero-clarity">
+    <div class="eyebrow"><span class="dot"></span> Runtime cost control for AI agents</div>
+    <h1>Your agent is wasting tokens. <span class="grad-text">Here's the proof.</span></h1>
+    <p>RunCore wraps any agent, cuts duplicate calls, bloated context and runaway loops at runtime — then proves task success didn't drop. Run a benchmark below, or gate it in your own CI.</p>
+    <div class="hero-ctas">
+      <a href="/app/certify" class="btn-hero btn-hero-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        Run a certification
+      </a>
+      <a href="/start" class="btn-hero btn-hero-ghost">How it works</a>
+    </div>
+    <div class="stat-row">
+      <div class="stat"><b>46%</b><span>fewer tokens, measured</span></div>
+      <div class="stat"><b>100%</b><span>task success preserved</span></div>
+      <div class="stat"><b>Any</b><span>provider or framework</span></div>
+    </div>
+  </div>
 
   <!-- KPI strip -->
   <div class="kpi-grid">
