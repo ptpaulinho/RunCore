@@ -2778,12 +2778,13 @@ footer {{ border-top: 1px solid var(--border); padding: 40px 0 48px; }}
     <section class="section" style="padding-top:0">
       <div class="cta-banner reveal">
         <div>
-          <h2 style="margin-bottom:8px">Submit to the leaderboard</h2>
-          <p>After certification, your SHA-256 fingerprinted report can be submitted publicly. Email your report JSON to <strong style="color:var(--text)">ppereira@saber3d.pt</strong> or open a PR to the RunCore repo.</p>
+          <h2 style="margin-bottom:8px">Get listed on the leaderboard — automatically</h2>
+          <p>Sign up free, run a certification, then click <strong style="color:var(--text)">Publish</strong> on it in your dashboard. Your grade, product name, and SHA-256 fingerprint appear on the public leaderboard instantly — no email, no PR.</p>
+          <p class="sub" style="margin-top:10px;font-size:.82rem">Certifying from the CLI without an account? Email your report JSON to <strong style="color:var(--text)">ppereira@saber3d.pt</strong> or open a PR — that path is still manual.</p>
         </div>
-        <a href="https://github.com/ptpaulinho/RunCore" class="btn btn-primary" style="white-space:nowrap">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55 0-.27-.01-1.17-.02-2.12-3.2.7-3.87-1.36-3.87-1.36-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.74.4-1.25.72-1.53-2.56-.29-5.26-1.28-5.26-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.79 0c2.21-1.49 3.18-1.18 3.18-1.18.63 1.58.23 2.75.11 3.04.74.81 1.19 1.84 1.19 3.1 0 4.43-2.7 5.41-5.27 5.7.42.36.78 1.07.78 2.16 0 1.56-.01 2.82-.01 3.2 0 .3.2.66.79.55A11.51 11.51 0 0 0 23.5 12c0-6.35-5.15-11.5-11.5-11.5z"/></svg>
-          GitHub
+        <a href="/register" class="btn btn-primary" style="white-space:nowrap">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          Get started free
         </a>
       </div>
     </section>
