@@ -2584,7 +2584,8 @@ footer {{ border-top: 1px solid var(--border); padding: 40px 0 48px; }}
     <a href="/" class="nav-link">Dashboard</a>
     <a href="/certification" class="nav-link">Certification</a>
     <a href="/leaderboard" class="nav-link">Leaderboard</a>
-    <a href="/pricing" class="nav-link">Pricing</a>
+    <a href="/cloud/dashboard" class="nav-link">Cloud</a>
+    <a href="/cloud/billing/plans" class="nav-link">Pricing</a>
   </div>
   <a href="#steps" class="nav-cta">Get started</a>
 </nav>
@@ -2695,7 +2696,7 @@ footer {{ border-top: 1px solid var(--border); padding: 40px 0 48px; }}
           <a href="/">Dashboard</a>
           <a href="/certification">Certification</a>
           <a href="/leaderboard">Leaderboard</a>
-          <a href="/pricing">Pricing</a>
+          <a href="/cloud/billing/plans">Pricing</a>
           <a href="https://github.com/ptpaulinho/RunCore">GitHub</a>
         </div>
       </div>
@@ -3552,6 +3553,8 @@ def dev_checkout(plan: str = "team", tenant: str = "") -> str:
 <style>{_DESIGN_CSS}</style>
 </head>
 <body style="display:flex;align-items:center;justify-content:center;min-height:100vh">
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
 <div class="card" style="max-width:460px;width:100%;text-align:center;padding:40px 36px">
   <div style="width:52px;height:52px;border-radius:14px;background:rgba(251,191,36,0.1);
     border:1px solid rgba(251,191,36,0.2);display:flex;align-items:center;justify-content:center;
