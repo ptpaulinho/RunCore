@@ -4101,6 +4101,8 @@ def company_certify_page(session: str | None = Cookie(default=None)):
 .tab.active{{border-color:#5577f3;color:#fff;background:#5577f322}}
 .hint{{font-size:.8rem;color:var(--muted);margin-top:-12px;margin-bottom:18px}}
 </style></head><body>
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
 <nav class="nav">
   <div class="nav-brand">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
@@ -4113,8 +4115,11 @@ def company_certify_page(session: str | None = Cookie(default=None)):
   </div>
 </nav>
 <main class="container" style="max-width:600px;padding-top:40px">
-  <h1 style="margin:0 0 8px;font-size:1.6rem">Run Certification</h1>
-  <p style="color:var(--text2);margin:0 0 28px">Measures efficiency against the RunCore Score™ open benchmark. Runs in the cloud — no terminal needed.</p>
+  <div class="hero-clarity" style="padding-top:8px;padding-bottom:8px">
+    <div class="eyebrow"><span class="dot"></span> Runtime cost control for AI agents</div>
+    <h1 style="font-size:clamp(1.5rem,3vw,2.1rem)">Run <span class="grad-text">Certification.</span></h1>
+    <p>Measures efficiency against the RunCore Score™ open benchmark. Runs in the cloud — no terminal needed.</p>
+  </div>
 
   <div class="tabs">
     <div class="tab active" id="tab-model" onclick="setMode('model')">Certify a model</div>
