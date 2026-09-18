@@ -3997,6 +3997,8 @@ def company_settings(saved: str = "", session: str | None = Cookie(default=None)
 .form-group input{{width:100%;max-width:480px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:.9rem;box-sizing:border-box}}
 .btn{{background:linear-gradient(135deg,#5577f3,#4a6cf5);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:.9rem;font-weight:600;cursor:pointer}}
 </style></head><body>
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
 <nav class="nav">
   <div class="nav-brand">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
@@ -4009,7 +4011,18 @@ def company_settings(saved: str = "", session: str | None = Cookie(default=None)
   </div>
 </nav>
 <main class="container" style="max-width:700px;padding-top:40px">
-  <h1 style="margin:0 0 32px;font-size:1.6rem">Account Settings</h1>
+  <div class="hero-clarity" style="padding-top:8px;padding-bottom:8px">
+    <div class="eyebrow"><span class="dot"></span> Runtime cost control for AI agents</div>
+    <h1 style="font-size:clamp(1.5rem,3vw,2.1rem)">Account <span class="grad-text">Settings.</span></h1>
+    <p>Add a provider key to certify from the dashboard — no terminal needed.</p>
+    <div class="hero-ctas">
+      <a href="/app/certify" class="btn-hero btn-hero-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        Run a certification
+      </a>
+      <a href="/app/dashboard" class="btn-hero btn-hero-ghost">Back to dashboard</a>
+    </div>
+  </div>
   {saved_banner}
   <div class="card" style="padding:28px;margin-bottom:24px">
     <h2 style="margin:0 0 20px;font-size:1rem;font-weight:700">Company</h2>
