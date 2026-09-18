@@ -3251,6 +3251,8 @@ def tenant_dashboard(request: Request) -> str:
 </style>
 </head>
 <body>
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
 <nav class="nav">
   <div class="nav-logo">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="url(#lg2)" stroke-width="2.5"><defs><linearGradient id="lg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#6488f5"/><stop offset="100%" stop-color="#8aaaf8"/></linearGradient></defs><polygon points="13,2 3,14 12,14 11,22 21,10 12,10"/></svg>
@@ -3272,6 +3274,18 @@ def tenant_dashboard(request: Request) -> str:
   </div>
 </nav>
 <div class="page">
+  <div class="hero-clarity" style="padding-top:8px">
+    <div class="eyebrow"><span class="dot"></span> Runtime cost control for AI agents</div>
+    <h1 style="font-size:clamp(1.5rem,3vw,2.1rem)">Trace <span class="grad-text">every run.</span></h1>
+    <p>Every agent call ingested via the SDK — success, cost, cost-per-successful-task, all in one place.</p>
+    <div class="hero-ctas">
+      <a href="/certification" class="btn-hero btn-hero-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        Run a certification
+      </a>
+      <a href="/cloud/billing/plans" class="btn-hero btn-hero-ghost">See plans</a>
+    </div>
+  </div>
   <div class="kpi-grid">
     <div class="kpi-card">
       <div class="kpi-icon" style="background:rgba(91,138,247,0.1);color:var(--accent)">
