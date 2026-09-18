@@ -48,6 +48,12 @@ class Capture:
             from runcore.sdk.guards import GuardEngine
             self._guard_engine = GuardEngine(guards)
 
+        # Per-capture tool result cache, used by the @runcore.tool decorator to
+        # serve deduplicated calls without re-executing the tool. Scoped to this
+        # Capture instance (not a module global) so it never leaks across
+        # requests/agent runs and is garbage-collected with the capture.
+        self._tool_result_cache: dict[str, tuple[Any, bool]] = {}
+
     # ------------------------------------------------------------------
     # Context manager
     # ------------------------------------------------------------------

@@ -1714,7 +1714,8 @@ async def start_benchmark(req: BenchmarkRequest, background_tasks: BackgroundTas
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "version": "0.11.0"}
+    import runcore as _runcore
+    return {"status": "ok", "version": _runcore.__version__}
 
 
 @app.get("/status")
@@ -2715,8 +2716,8 @@ footer {{ border-top: 1px solid var(--border); padding: 40px 0 48px; }}
         <div class="step reveal">
           <div class="step-num">2</div>
           <h3>Full guards — dedup &amp; context</h3>
-          <p>Cutting duplicate tool calls and stale context needs a hook where <em>your</em> code executes a tool — RunCore can't see inside your tool loop otherwise. A few lines, once:</p>
-          <div class="code"><span class="c3"># in your tool-dispatch loop</span><br><span class="c1">if</span> cap.dedup_check(name, args):<br>&nbsp;&nbsp;result = cached<br><span class="c1">else</span>:<br>&nbsp;&nbsp;result = call_tool(name, args)</div>
+          <p>RunCore can't see inside your tool loop without you saying so — but that's now one decorator per tool, not a hand-written hook:</p>
+          <div class="code"><span class="c1">@runcore.tool</span><br><span class="c1">def</span> get_weather(city):<br>&nbsp;&nbsp;<span class="c1">return</span> call_api(city)<br><span class="c3"># duplicate calls auto-skip &amp; return cached</span></div>
         </div>
 
         <div class="step reveal">
@@ -2739,7 +2740,7 @@ footer {{ border-top: 1px solid var(--border); padding: 40px 0 48px; }}
         <div class="feature reveal">
           <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg></div>
           <h4>Runtime guards</h4>
-          <p>Loop-break is automatic. Duplicate-call & context guards hook into your tool loop — one small change.</p>
+          <p>Loop-break is automatic. Duplicate-call & context guards activate with one @runcore.tool decorator per tool.</p>
         </div>
         <div class="feature reveal">
           <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.5 9.5-.3.1-.6.1-1 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg></div>
