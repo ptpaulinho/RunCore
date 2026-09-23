@@ -1,0 +1,45 @@
+# RunCore verified fixes — weekly PR with changes proven on your recorded runs.
+#
+# Copy to .github/workflows/runcore-fix.yml in your agent's repo. It:
+#   1. replays your recorded runs (traces/ folder, written by `import runcore.auto`)
+#      against cheaper candidates and without never-used tools,
+#   2. opens a PR with runcore.fix.json only if a change passed verification.
+# Merging the PR applies the fix at runtime — `import runcore.auto` loads runcore.fix.json.
+#
+# Secrets: the API keys of the providers you test (OPENAI_API_KEY, ...).
+
+name: RunCore verified fixes
+on:
+  schedule: [{ cron: "0 6 * * 1" }]   # Mondays 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install runcore
+      - name: Find and verify fixes
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          runcore fix traces/ \
+            --current openai:gpt-4o \
+            --try openai:gpt-4o-mini \
+            --judge openai:gpt-4o \
+            --markdown runcore-fix.md
+      - name: Open PR (only when a fix was verified)
+        if: hashFiles('runcore.fix.json') != ''
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: runcore/verified-fix
+          title: "RunCore: verified cost fix"
+          body-path: runcore-fix.md
+          add-paths: runcore.fix.json
+          commit-message: "chore: apply RunCore verified fix"

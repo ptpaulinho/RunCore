@@ -1,0 +1,21 @@
+{
+  "agent": "support",
+  "tasks": [
+    "Refund invoice #1001 for customer john@example.com",
+    "Check status of order #5042",
+    "Customer says they were charged twice for order #3311"
+  ],
+  "config": {
+    "max_tools": 3,
+    "min_quality_threshold": 0.80,
+    "cost_reduction_target": 0.25,
+    "enable_context_compression": true,
+    "enable_loop_detection": true,
+    "enable_tool_ranking": true
+  },
+  "expected": {
+    "max_cost_per_task": 0.50,
+    "max_tool_calls": 5,
+    "min_quality": 0.80
+  }
+}
